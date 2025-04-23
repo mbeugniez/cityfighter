@@ -26,3 +26,18 @@ def load_city_data():
     df = df[df["Population"] > 20000].copy()
 
     return df
+
+def get_city_info(df, city_name):
+    row = df[df["Nom"] == city_name]
+    if row.empty:
+        return None
+    row = row.iloc[0]
+    return {
+        "Nom": row["Nom"],
+        "Département": row["Département"],
+        "Région": row["Région"],
+        "Latitude": row["Latitude"],
+        "Longitude": row["Longitude"],
+        "Population": row["Population"],
+        "COM_CODE": row["COM_CODE"]
+    }
