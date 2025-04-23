@@ -383,8 +383,8 @@ def afficher_onglet_immobilier(city1, city2):
                 prix_12 = float(ligne["App12_loypredm2"].replace(",", "."))
                 prix_3p = float(ligne["App3_loypredm2"].replace(",", "."))
 
-                maisons = int(ligne["P21_MAISON"])
-                apparts = int(ligne["P21_APPART"])
+                maisons = float(ligne["P21_MAISON"])
+                apparts = float(ligne["P21_APPART"])
                 total = maisons + apparts
                 part_maisons = round(100 * maisons / total, 1)
                 part_apparts = round(100 * apparts / total, 1)
