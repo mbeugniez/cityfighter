@@ -366,22 +366,12 @@ from utils.data_loader import load_city_data, get_city_info
 # Chargement des données de villes
 df_cities = load_city_data()
 
+# Chargement du fichier unique immobilier
+df_logements = pd.read_csv("data/logements_entiers.csv", sep=";", encoding="latin1", dtype=str)
+
 def afficher_onglet_immobilier(city1, city2, df_cities):
     st.markdown("## 🏠 Immobilier")
     st.markdown("Analyse immobilière basée sur des données réelles (DHUP et INSEE 2021).")
-
-    # Chargement des fichiers
-    df_1_2_pieces = pd.read_csv("data/pred-app12-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
-    df_3_pieces_plus = pd.read_csv("data/pred-app3-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
-    df_maisons = pd.read_csv("data/pred-mai-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
-    df_appart = pd.read_csv("data/pred-app-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
-    df_logements = pd.read_csv("data/logements_filtrés.csv", sep=";", encoding="utf-8", dtype=str)
-
-    # Nettoyage et uniformisation du code commune
-    for df in [df_1_2_pieces, df_3_pieces_plus, df_maisons, df_appart, df_logements]:
-        df["COM_CODE"] = df["COM_CODE"].astype(str)
-    for df in [df_1_2_pieces, df_3_pieces_plus, df_maisons, df_appart]:
-        df["loypredm2"] = df["loypredm2"].str.replace(",", ".").astype(float)
 
     col1, col2 = st.columns(2)
     for col, city in zip([col1, col2], [city1, city2]):
@@ -389,25 +379,30 @@ def afficher_onglet_immobilier(city1, city2, df_cities):
             city_info = get_city_info(df_cities, city)
             code_commune = city_info["COM_CODE"]
 
-            prix_12 = df_1_2_pieces[df_1_2_pieces["COM_CODE"] == code_commune]["loypredm2"].mean()
-            prix_3p = df_3_pieces_plus[df_3_pieces_plus["COM_CODE"] == code_commune]["loypredm2"].mean()
-            prix_appart = df_appart[df_appart["COM_CODE"] == code_commune]["loypredm2"].mean()
-            prix_maisons = df_maisons[df_maisons["COM_CODE"] == code_commune]["loypredm2"].mean()
-
-            ligne_logement = df_logements[df_logements["COM_CODE"] == code_commune]
+            ligne_logement = df_logements[df_logements["INSEE_C"] == code_commune]
             if not ligne_logement.empty:
                 ligne = ligne_logement.iloc[0]
-                maisons = int(ligne["P21_MAISON"])
-                apparts = int(ligne["P21_APPART"])
+
+                # Conversion des loyers
+                prix_12 = float(ligne["App12_loypredm2"].replace(",", "."))
+                prix_3p = float(ligne["App3_loypredm2"].replace(",", "."))
+                prix_appart = float(ligne["App_loypredm2"].replace(",", "."))
+                prix_maisons = float(ligne["Maison_loypredm2"].replace(",", "."))
+
+                # Répartition maisons/apparts
+                maisons = float(ligne["P21_MAISON"])
+                apparts = float(ligne["P21_APPART"])
                 total = maisons + apparts
                 part_maisons = round(100 * maisons / total, 1)
                 part_apparts = round(100 * apparts / total, 1)
 
+                # Usage des logements
+                usage_vals = [float(ligne["P21_RP"]), float(ligne["P21_RSECOCC"]), float(ligne["P21_LOGVAC"])]
                 usage_labels = ["Résidences principales", "Résidences secondaires", "Logements vacants"]
-                usage_vals = [int(ligne["P21_RP"]), int(ligne["P21_RSECOCC"]), int(ligne["P21_LOGVAC"])]
                 usage_total = sum(usage_vals)
                 usage_pct = [round(100 * v / usage_total, 1) for v in usage_vals]
             else:
+                prix_12 = prix_3p = prix_appart = prix_maisons = None
                 part_maisons = part_apparts = 50
                 usage_labels = ["RP", "RS", "VAC"]
                 usage_pct = [60, 30, 10]
@@ -418,16 +413,16 @@ def afficher_onglet_immobilier(city1, city2, df_cities):
                     <h3 style="color: #c8102e; text-align: center;">Immobilier à {city}</h3>
                     <div style="display: flex; justify-content: space-around; margin-top: 1rem;">
                         <div style="text-align:center;">
-                            🏢<br><strong>{f"{prix_12:.2f} €" if not pd.isna(prix_12) else "–"}</strong><br><small>m² (1–2 pièces)</small>
+                            🏢<br><strong>{f"{prix_12:.2f} €" if prix_12 else "–"}</strong><br><small>m² (1–2 pièces)</small>
                         </div>
                         <div style="text-align:center;">
-                            🏢<br><strong>{f"{prix_3p:.2f} €" if not pd.isna(prix_3p) else "–"}</strong><br><small>m² (3 pièces et +)</small>
+                            🏢<br><strong>{f"{prix_3p:.2f} €" if prix_3p else "–"}</strong><br><small>m² (3 pièces et +)</small>
                         </div>
                         <div style="text-align:center;">
-                            🏢<br><strong>{f"{prix_appart:.2f} €" if not pd.isna(prix_appart) else "–"}</strong><br><small>m² (appart)</small>
+                            🏢<br><strong>{f"{prix_appart:.2f} €" if prix_appart else "–"}</strong><br><small>m² (appart)</small>
                         </div>
                         <div style="text-align:center;">
-                            🏠<br><strong>{f"{prix_maisons:.2f} €" if not pd.isna(prix_maisons) else "–"}</strong><br><small>m² (maison)</small>
+                            🏠<br><strong>{f"{prix_maisons:.2f} €" if prix_maisons else "–"}</strong><br><small>m² (maison)</small>
                         </div>
                     </div>
             """, unsafe_allow_html=True)
@@ -450,7 +445,6 @@ def afficher_onglet_immobilier(city1, city2, df_cities):
 
             st.markdown("<p style='font-size:12px; color:gray;'>Sources : DHUP & INSEE 2021</p>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 
