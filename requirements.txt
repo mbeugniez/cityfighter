@@ -1,5 +1,11 @@
 streamlit
 pandas
 folium
-st_folium
 streamlit_folium
+utils.wikipedia_api
+utils.data_loader
+numpy
+matplotlib.pyplot
+requests
+wikipedia
+wikipediaapi
