@@ -277,7 +277,7 @@ def afficher_onglet_emploi(ville1, ville2):
 
 @st.cache_data
 def charger_donnees_population():
-    return pd.read_excel("data/base-pop-historiques-1876-2022.xlsx", sheet_name="pop_1876_2022", skiprows=5)
+    return pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
 
 df_pop = charger_donnees_population()
 
