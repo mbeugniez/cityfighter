@@ -1,11 +1,9 @@
 streamlit
 pandas
+numpy
+matplotlib
 folium
 streamlit-folium
-utils.wikipedia_api
-utils.data_loader
-numpy
-matplotlib.pyplot
 requests
 wikipedia
 wikipediaapi
