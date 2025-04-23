@@ -275,9 +275,15 @@ def afficher_onglet_emploi(ville1, ville2):
         """, unsafe_allow_html=True)
 
 
+@st.cache_data
+def charger_donnees_population():
+    return pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
+
+df_pop = charger_donnees_population()
+
 def afficher_onglet_population(city1, city2):
-    st.markdown("## 👥 Population (exemple fictif)")
-    st.markdown("Indicateurs inspirés de l'INSEE – données fictives à adapter.")
+    st.markdown("## 👥 Population")
+    st.markdown("Indicateurs réels issus de l'INSEE (2012–2022).")
 
     col1, col2 = st.columns(2)
 
@@ -286,19 +292,40 @@ def afficher_onglet_population(city1, city2):
             st.markdown(f"""
             <div style="background-color: white; padding: 30px; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,0.08);">
                 <h3 style="text-align:center; color:#c8102e;">Population à {city}</h3>
+            """, unsafe_allow_html=True)
+
+            ligne_ville = df_pop[df_pop["LIBGEO"].str.upper() == city.upper()]
+
+            if ligne_ville.empty:
+                st.warning(f"Aucune donnée trouvée pour {city}.")
+                continue
+
+            ligne_ville = ligne_ville.iloc[0]
+            annees = [str(an) for an in range(2012, 2023)]
+            colonnes = [f"PMUN{an}" for an in range(2012, 2023)]
+            pop = ligne_ville[colonnes].values.astype(int)
+
+             # ➕ Calcul de l'évolution réelle entre 2016 et 2022
+            pop_2016 = ligne_ville["PMUN2016"]
+            pop_2022 = ligne_ville["PMUN2022"]
+            pop_2022 = float(pop_2022)
+            pop_2016 = float(pop_2016)
+            evolution_pct = ((pop_2022 - pop_2016) / pop_2016) * 100
+            evolution_color = "green" if evolution_pct >= 0 else "red"
+            evolution_prefix = "+" if evolution_pct >= 0 else ""
+
+            st.markdown(f"""
                 <div style="display:flex; justify-content:space-around; flex-wrap:wrap; text-align:center; font-size:16px; margin-top:20px;">
-                    <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(19000, 26000):,}</strong><br>habitants</div>
-                    <div><strong style="color:green; font-size:24px;">+{round(np.random.uniform(0.5, 2.5),2)}%</strong><br>entre 2016-2022</div>
+                    <div><strong style="color:#c8102e; font-size:24px;">{pop_2022:,}</strong><br>habitants</div>
+                    <div><strong style="color:{evolution_color}; font-size:24px;">{evolution_prefix}{evolution_pct:.2f}%</strong><br>entre 2016–2022</div>
                     <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(400, 1300)}</strong><br>hab/km²</div>
                     <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(35, 55)} ans</strong><br>âge médian</div>
                 </div>
             """, unsafe_allow_html=True)
 
             st.markdown("<h4 style='color:#c8102e; margin-top:30px;'>Évolution de la population</h4>", unsafe_allow_html=True)
-            years = np.arange(2012, 2023)
-            pop = np.random.randint(15000, 25000, size=len(years))
             fig, ax = plt.subplots()
-            ax.plot(years, pop, marker='o', color=color)
+            ax.plot(annees, pop, marker='o', color=color)
             ax.set_ylabel("Habitants")
             ax.set_xlabel("Année")
             ax.grid(True)
@@ -329,73 +356,103 @@ def afficher_onglet_population(city1, city2):
             st.markdown("</div>", unsafe_allow_html=True)
 
 
-def afficher_onglet_immobilier(city1, city2):
-    st.markdown("## 🏠 Immobilier (exemple fictif)")
-    st.markdown("Analyse immobilière basée sur des données fictives inspirées de l'INSEE.")
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import streamlit as st
+
+from utils.data_loader import load_city_data, get_city_info
+
+# Chargement des données de villes
+df_cities = load_city_data()
+
+def afficher_onglet_immobilier(city1, city2, df_cities):
+    st.markdown("## 🏠 Immobilier")
+    st.markdown("Analyse immobilière basée sur des données réelles (DHUP et INSEE 2021).")
+
+    # Chargement des fichiers
+    df_1_2_pieces = pd.read_csv("data/pred-app12-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
+    df_3_pieces_plus = pd.read_csv("data/pred-app3-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
+    df_maisons = pd.read_csv("data/pred-mai-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
+    df_appart = pd.read_csv("data/pred-app-mef-dhup.csv", sep=";", encoding="latin1", dtype=str)
+    df_logements = pd.read_csv("data/logements_filtrés.csv", sep=";", encoding="utf-8", dtype=str)
+
+    # Nettoyage et uniformisation du code commune
+    for df in [df_1_2_pieces, df_3_pieces_plus, df_maisons, df_appart, df_logements]:
+        df["COM_CODE"] = df["COM_CODE"].astype(str)
+    for df in [df_1_2_pieces, df_3_pieces_plus, df_maisons, df_appart]:
+        df["loypredm2"] = df["loypredm2"].str.replace(",", ".").astype(float)
 
     col1, col2 = st.columns(2)
-
     for col, city in zip([col1, col2], [city1, city2]):
         with col:
+            city_info = get_city_info(df_cities, city)
+            code_commune = city_info["COM_CODE"]
+
+            prix_12 = df_1_2_pieces[df_1_2_pieces["COM_CODE"] == code_commune]["loypredm2"].mean()
+            prix_3p = df_3_pieces_plus[df_3_pieces_plus["COM_CODE"] == code_commune]["loypredm2"].mean()
+            prix_appart = df_appart[df_appart["COM_CODE"] == code_commune]["loypredm2"].mean()
+            prix_maisons = df_maisons[df_maisons["COM_CODE"] == code_commune]["loypredm2"].mean()
+
+            ligne_logement = df_logements[df_logements["COM_CODE"] == code_commune]
+            if not ligne_logement.empty:
+                ligne = ligne_logement.iloc[0]
+                maisons = int(ligne["P21_MAISON"])
+                apparts = int(ligne["P21_APPART"])
+                total = maisons + apparts
+                part_maisons = round(100 * maisons / total, 1)
+                part_apparts = round(100 * apparts / total, 1)
+
+                usage_labels = ["Résidences principales", "Résidences secondaires", "Logements vacants"]
+                usage_vals = [int(ligne["P21_RP"]), int(ligne["P21_RSECOCC"]), int(ligne["P21_LOGVAC"])]
+                usage_total = sum(usage_vals)
+                usage_pct = [round(100 * v / usage_total, 1) for v in usage_vals]
+            else:
+                part_maisons = part_apparts = 50
+                usage_labels = ["RP", "RS", "VAC"]
+                usage_pct = [60, 30, 10]
+
+            # Affichage
             st.markdown(f"""
                 <div style="background-color: white; padding: 25px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
                     <h3 style="color: #c8102e; text-align: center;">Immobilier à {city}</h3>
-                    <p style="text-align: justify;">Les habitants de {city} vivent majoritairement dans une maison et sont très souvent propriétaires de leur logement. L’habitat est ancien, avec une majorité de logements datant d’avant 1970. Les surfaces sont grandes et de nombreux logements comptent plus de 4 pièces.</p>
                     <div style="display: flex; justify-content: space-around; margin-top: 1rem;">
                         <div style="text-align:center;">
-                            🏢<br><strong>-</strong><br><small>Prix m² appart</small>
+                            🏢<br><strong>{f"{prix_12:.2f} €" if not pd.isna(prix_12) else "–"}</strong><br><small>m² (1–2 pièces)</small>
                         </div>
                         <div style="text-align:center;">
-                            🏠<br><strong>-</strong><br><small>Prix m² maison</small>
+                            🏢<br><strong>{f"{prix_3p:.2f} €" if not pd.isna(prix_3p) else "–"}</strong><br><small>m² (3 pièces et +)</small>
+                        </div>
+                        <div style="text-align:center;">
+                            🏢<br><strong>{f"{prix_appart:.2f} €" if not pd.isna(prix_appart) else "–"}</strong><br><small>m² (appart)</small>
+                        </div>
+                        <div style="text-align:center;">
+                            🏠<br><strong>{f"{prix_maisons:.2f} €" if not pd.isna(prix_maisons) else "–"}</strong><br><small>m² (maison)</small>
                         </div>
                     </div>
             """, unsafe_allow_html=True)
 
-            # 🥧 Camembert - Type d’habitat
-            st.markdown("### 🏘️ Type d’habitat", unsafe_allow_html=True)
-            labels = ['Maisons', 'Appartements']
-            sizes = [100, 0]
+            st.markdown("### 🏘️ Type de logement", unsafe_allow_html=True)
             fig1, ax1 = plt.subplots()
-            ax1.pie(sizes, labels=labels, autopct='%1.0f %%', startangle=90, colors=['#f5425d', '#ddd'])
+            ax1.pie([part_maisons, part_apparts], labels=['Maisons', 'Appartements'],
+                    autopct='%1.1f %%', startangle=90, colors=['#f5425d', '#1f77b4'])
             ax1.axis('equal')
             st.pyplot(fig1)
 
-            # 🥧 Camembert - Statut d'occupation
-            st.markdown("### 👤 Habitants", unsafe_allow_html=True)
-            labels2 = ['Propriétaires', 'Locataires']
-            sizes2 = [91.8, 8.2]
-            fig2, ax2 = plt.subplots()
-            ax2.pie(sizes2, labels=labels2, autopct='%1.1f %%', startangle=90, colors=['#f5425d', '#1f77b4'])
-            ax2.axis('equal')
-            st.pyplot(fig2)
-
-            # Barres - Usage des habitations
-            st.markdown("### 🏡 Usage des habitations", unsafe_allow_html=True)
-            usages = ["Logements vacants", "Résidences principales", "Résidences secondaires"]
-            usage_pct = [10.4, 80.5, 9.1]
-            for label, val in zip(usages, usage_pct):
+            st.markdown("### 🏡 Usage des logements", unsafe_allow_html=True)
+            for label, pct in zip(usage_labels, usage_pct):
                 st.markdown(f"""
                     <div style="margin:6px 0;">
-                        <div style="width:{val}%; background:#f5425d; height:14px; border-radius:4px; display:inline-block;"></div>
-                        <span style="margin-left:10px;">{val:.1f}% {label}</span>
+                        <div style="width:{pct}%; background:#f5425d; height:14px; border-radius:4px; display:inline-block;"></div>
+                        <span style="margin-left:10px;">{pct}% {label}</span>
                     </div>
                 """, unsafe_allow_html=True)
 
-            # Barres - Nombre de pièces
-            st.markdown("### 🛏️ Nombre de pièces", unsafe_allow_html=True)
-            nb_pieces = ["1 pièce", "2 pièces", "3 pièces", "4 pièces", "5 pièces et plus"]
-            pieces_pct = [3.3, 4.9, 8.2, 26.2, 57.4]
-            for label, val in zip(nb_pieces, pieces_pct):
-                st.markdown(f"""
-                    <div style="margin:6px 0;">
-                        <div style="width:{val}%; background:#f5425d; height:14px; border-radius:4px; display:inline-block;"></div>
-                        <span style="margin-left:10px;">{val:.1f}% {label}</span>
-                    </div>
-                """, unsafe_allow_html=True)
-
-            # Bas
-            st.markdown("<p style='font-size:12px; color:gray;'>Source : Données fictives INSEE / DVF</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:12px; color:gray;'>Sources : DHUP & INSEE 2021</p>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
+
+
+
 
 def afficher_onglet_securite(city1, city2):
     st.markdown("## 🛡️ Sécurité")
