@@ -357,89 +357,91 @@ def afficher_onglet_population(city1, city2):
 
 
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
 
-from utils.data_loader import load_city_data, get_city_info
+# Chargement des données fusionnées une seule fois
+df_logements = pd.read_csv("data/logements_entiers.csv", sep=";", dtype=str, encoding="latin1")
 
-# Chargement des données de villes
-df_cities = load_city_data()
-
-# Chargement du fichier unique immobilier
-df_logements = pd.read_csv("data/logements_entiers.csv", sep=";", encoding="latin1", dtype=str)
-
-def afficher_onglet_immobilier(city1, city2, df_cities):
+def afficher_onglet_immobilier(city1, city2):
     st.markdown("## 🏠 Immobilier")
-    st.markdown("Analyse immobilière basée sur des données réelles (DHUP et INSEE 2021).")
+    st.markdown("Analyse immobilière basée sur des données réelles (DHUP & INSEE 2021).")
 
     col1, col2 = st.columns(2)
+
     for col, city in zip([col1, col2], [city1, city2]):
         with col:
-            city_info = get_city_info(df_cities, city)
-            code_commune = city_info["COM_CODE"]
+            city_upper = city.upper()
+            ligne_logement = df_logements[df_logements["LIBGEO"].str.upper() == city_upper]
 
-            ligne_logement = df_logements[df_logements["INSEE_C"] == code_commune]
             if not ligne_logement.empty:
                 ligne = ligne_logement.iloc[0]
 
-                # Conversion des loyers
-                prix_12 = float(ligne["App12_loypredm2"].replace(",", "."))
-                prix_3p = float(ligne["App3_loypredm2"].replace(",", "."))
+                # Extraction et conversion des valeurs
                 prix_appart = float(ligne["App_loypredm2"].replace(",", "."))
                 prix_maisons = float(ligne["Maison_loypredm2"].replace(",", "."))
+                prix_12 = float(ligne["App12_loypredm2"].replace(",", "."))
+                prix_3p = float(ligne["App3_loypredm2"].replace(",", "."))
 
-                # Répartition maisons/apparts
-                maisons = float(ligne["P21_MAISON"])
-                apparts = float(ligne["P21_APPART"])
+                maisons = int(ligne["P21_MAISON"])
+                apparts = int(ligne["P21_APPART"])
                 total = maisons + apparts
                 part_maisons = round(100 * maisons / total, 1)
                 part_apparts = round(100 * apparts / total, 1)
 
-                # Usage des logements
-                usage_vals = [float(ligne["P21_RP"]), float(ligne["P21_RSECOCC"]), float(ligne["P21_LOGVAC"])]
-                usage_labels = ["Résidences principales", "Résidences secondaires", "Logements vacants"]
+                usage_labels = ["Rés. principales", "Rés. secondaires", "Vacants"]
+                usage_vals = [
+                    int(ligne["P21_RP"]),
+                    int(ligne["P21_RSECOCC"]),
+                    int(ligne["P21_LOGVAC"])
+                ]
                 usage_total = sum(usage_vals)
-                usage_pct = [round(100 * v / usage_total, 1) for v in usage_vals]
+                usage_pct = [round(100 * x / usage_total, 1) for x in usage_vals]
             else:
-                prix_12 = prix_3p = prix_appart = prix_maisons = None
+                prix_appart = prix_maisons = prix_12 = prix_3p = None
                 part_maisons = part_apparts = 50
                 usage_labels = ["RP", "RS", "VAC"]
                 usage_pct = [60, 30, 10]
 
-            # Affichage
+            # Affichage des loyers
             st.markdown(f"""
                 <div style="background-color: white; padding: 25px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
                     <h3 style="color: #c8102e; text-align: center;">Immobilier à {city}</h3>
+                    <p style="text-align: justify;">Voici une estimation des loyers par mètre carré selon le type de logement :</p>
                     <div style="display: flex; justify-content: space-around; margin-top: 1rem;">
                         <div style="text-align:center;">
-                            🏢<br><strong>{f"{prix_12:.2f} €" if prix_12 else "–"}</strong><br><small>m² (1–2 pièces)</small>
+                            🏢 Appartements<br><strong>{f"{prix_appart:.2f} €" if prix_appart else "-"}</strong><br><small>Loyer moyen au m²</small>
                         </div>
                         <div style="text-align:center;">
-                            🏢<br><strong>{f"{prix_3p:.2f} €" if prix_3p else "–"}</strong><br><small>m² (3 pièces et +)</small>
+                            🏠 Maisons<br><strong>{f"{prix_maisons:.2f} €" if prix_maisons else "-"}</strong><br><small>Loyer moyen au m²</small>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-around; margin-top: 1rem;">
+                        <div style="text-align:center;">
+                            🏢<br><strong>{f"{prix_12:.2f} €" if prix_12 else "-"}</strong><br><small>m² (1–2 pièces)</small>
                         </div>
                         <div style="text-align:center;">
-                            🏢<br><strong>{f"{prix_appart:.2f} €" if prix_appart else "–"}</strong><br><small>m² (appart)</small>
-                        </div>
-                        <div style="text-align:center;">
-                            🏠<br><strong>{f"{prix_maisons:.2f} €" if prix_maisons else "–"}</strong><br><small>m² (maison)</small>
+                            🏢<br><strong>{f"{prix_3p:.2f} €" if prix_3p else "-"}</strong><br><small>m² (3 pièces et +)</small>
                         </div>
                     </div>
             """, unsafe_allow_html=True)
 
+            # 📊 Type de logement
             st.markdown("### 🏘️ Type de logement", unsafe_allow_html=True)
+            labels = ['Maisons', 'Appartements']
+            sizes = [part_maisons, part_apparts]
             fig1, ax1 = plt.subplots()
-            ax1.pie([part_maisons, part_apparts], labels=['Maisons', 'Appartements'],
-                    autopct='%1.1f %%', startangle=90, colors=['#f5425d', '#1f77b4'])
+            ax1.pie(sizes, labels=labels, autopct='%1.1f %%', startangle=90, colors=['#f5425d', '#1f77b4'])
             ax1.axis('equal')
             st.pyplot(fig1)
 
+            # 📊 Usage des logements
             st.markdown("### 🏡 Usage des logements", unsafe_allow_html=True)
-            for label, pct in zip(usage_labels, usage_pct):
+            for label, val in zip(usage_labels, usage_pct):
                 st.markdown(f"""
                     <div style="margin:6px 0;">
-                        <div style="width:{pct}%; background:#f5425d; height:14px; border-radius:4px; display:inline-block;"></div>
-                        <span style="margin-left:10px;">{pct}% {label}</span>
+                        <div style="width:{val}%; background:#f5425d; height:14px; border-radius:4px; display:inline-block;"></div>
+                        <span style="margin-left:10px;">{val:.1f}% {label}</span>
                     </div>
                 """, unsafe_allow_html=True)
 
