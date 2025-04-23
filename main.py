@@ -391,9 +391,9 @@ def afficher_onglet_immobilier(city1, city2):
 
                 usage_labels = ["Rés. principales", "Rés. secondaires", "Vacants"]
                 usage_vals = [
-                    int(ligne["P21_RP"]),
-                    int(ligne["P21_RSECOCC"]),
-                    int(ligne["P21_LOGVAC"])
+                    float(ligne["P21_RP"]),
+                    float(ligne["P21_RSECOCC"]),
+                    float(ligne["P21_LOGVAC"])
                 ]
                 usage_total = sum(usage_vals)
                 usage_pct = [round(100 * x / usage_total, 1) for x in usage_vals]
