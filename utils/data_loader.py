@@ -17,7 +17,12 @@ def load_city_data():
     df_pop = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5, dtype=str)
     df_pop = df_pop.rename(columns={"CODGEO": "COM_CODE", "PMUN2022": "Population"})
     df_pop["COM_CODE"] = df_pop["COM_CODE"].astype(str)
-    df_pop["Population"] = df_pop["Population"].str.replace(",", ".").astype(float)
+    df_pop["Population"] = (
+    df_pop["Population"]
+    .str.replace(",", ".", regex=False)
+    .str.extract(r"([\d.]+)")  # ne garde que les chiffres + points
+    .astype(float)
+)
 
     # Fusion des deux sources
     df = df_geo.merge(df_pop[["COM_CODE", "Population"]], on="COM_CODE", how="left")
