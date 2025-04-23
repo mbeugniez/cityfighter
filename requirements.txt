@@ -6,3 +6,4 @@ folium
 streamlit-folium
 requests
 wikipedia
+wikipedia-api
