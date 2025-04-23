@@ -31,7 +31,7 @@ def load_city_data():
     df = df[df["Population"] > 20000].copy()
 
     return df
-
+    
 def get_city_info(df, city_name):
     row = df[df["Nom"] == city_name]
     if row.empty:
