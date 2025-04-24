@@ -3,14 +3,14 @@ import streamlit as st
 
 @st.cache_data
 def load_city_data():
-    df = pd.read_csv("data/referentiel_geographique.csv", sep=";", on_bad_lines='skip')
+    df = pd.read_csv("data/referentiel_plus_20000.csv", sep=",")
     df = df[df["geolocalisation"].notna()]
     df["Latitude"] = df["geolocalisation"].apply(lambda x: float(x.split(",")[0]))
     df["Longitude"] = df["geolocalisation"].apply(lambda x: float(x.split(",")[1]))
     df["Nom"] = df["COM_NOM_MAJ_COURT"].str.title()
     df["Département"] = df["DEP_NOM"]
     df["Région"] = df["REG_NOM"]
-    df["Population"] = 20000 + (df.index % 15000)  # Valeurs fictives si manquantes
+    df["Population"] = df["PMUN2022"]
     df["COM_CODE"] = df["COM_CODE"].astype(str)
     return df
 
