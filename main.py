@@ -303,7 +303,7 @@ def afficher_onglet_population(city1, city2):
             ligne_ville = ligne_ville.iloc[0]
             annees = [str(an) for an in range(2012, 2023)]
             colonnes = [f"PMUN{an}" for an in range(2012, 2023)]
-            pop = ligne_ville[colonnes].values.astype(int)
+            pop = ligne_ville[colonnes].astype(str).str.replace(" ", "", regex=False).str.replace(",", ".", regex=False).astype(float).astype(int).values
 
              # ➕ Calcul de l'évolution réelle entre 2016 et 2022
             pop_2016 = ligne_ville["PMUN2016"]
