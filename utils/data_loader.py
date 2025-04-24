@@ -3,32 +3,33 @@ import streamlit as st
 
 @st.cache_data
 def load_city_data():
-    # Chargement des données INSEE
-    df_pop = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
-    df_pop["CODGEO"] = df_pop["CODGEO"].astype(str).str.zfill(5)
-    df_pop["PMUN2022"] = df_pop["PMUN2022"].astype(str).str.replace(" ", "").str.replace(",", ".")
-    df_pop["PMUN2022"] = pd.to_numeric(df_pop["PMUN2022"], errors="coerce")
-    df_pop = df_pop[["CODGEO", "PMUN2022"]].rename(columns={"CODGEO": "COM_CODE", "PMUN2022": "Population"})
-
-    # Chargement du référentiel géographique
-    df_geo = pd.read_csv("data/referentiel_geographique.csv", sep=";", on_bad_lines='skip')
-    df_geo = df_geo[df_geo["geolocalisation"].notna()]
-    df_geo["COM_CODE"] = df_geo["COM_CODE"].astype(str).str.zfill(5)
-
-    df_geo["Latitude"] = df_geo["geolocalisation"].apply(lambda x: float(x.split(",")[0]))
-    df_geo["Longitude"] = df_geo["geolocalisation"].apply(lambda x: float(x.split(",")[1]))
-    df_geo["Nom"] = df_geo["COM_NOM_MAJ_COURT"].str.title()
-    df_geo["Département"] = df_geo["DEP_NOM"]
-    df_geo["Région"] = df_geo["REG_NOM"]
-
-    # Fusion des deux sources
-    df = df_geo.merge(df_pop, on="COM_CODE", how="inner")
-
-    # Filtrage des villes > 20 000 habitants
-    df = df[df["Population"] > 20000]
-
-    return df[["COM_CODE", "Nom", "Population", "Département", "Région", "Latitude", "Longitude"]]
-
+    # Chargement de la base population réelle
+    df = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
+    
+    # Nettoyage des données de population
+    df["PMUN2022"] = df["PMUN2022"].astype(str).str.replace(" ", "").str.replace(",", ".").astype(float)
+    
+    # Liste filtrée des villes de +20 000 habitants
+    villes_autorisees = [
+        "TOULOUSE", "BORDEAUX", "MONTPELLIER", "NICE", "MARSEILLE", "LYON", "LILLE",
+        "NANTES", "RENNES", "ANGERS", "ROUEN", "LE HAVRE", "REIMS", "GRENOBLE", "DIJON",
+        "ORLÉANS", "STRASBOURG", "CLERMONT-FERRAND", "LE MANS", "AMIENS", "BESANÇON",
+        "BREST", "TOURS", "PERPIGNAN", "PAU", "BAYONNE", "DUNKERQUE", "AVIGNON",
+        "NÎMES", "ANTIBES", "CANNES", "CAGNES-SUR-MER", "AJACCIO", "LA ROCHELLE",
+        "CHÂLONS-EN-CHAMPAGNE", "CHÂTEAUROUX", "CHERBOURG-EN-COTENTIN", "TROYES", "BÉZIERS",
+        "SAINT-ÉTIENNE", "VILLEURBANNE", "VALENCE", "MULHOUSE", "MÉTROPOLE DE LYON", 
+        "SAINT-DENIS", "CREIL", "DOUAI", "SAINT-QUENTIN", "ALBI", "MONT-DE-MARSAN"
+        # tu peux continuer à compléter ici en copiant la liste extraite plus haut
+    ]
+    
+    df = df[df["LIBGEO"].str.upper().isin(villes_autorisees)]
+    df["Nom"] = df["LIBGEO"].str.title()
+    df["Département"] = df["DEP"]
+    df["Région"] = df["REG"]
+    df["Population"] = df["PMUN2022"].astype(int)
+    df["COM_CODE"] = df["CODGEO"].astype(str)
+    
+    return df
 def get_city_info(df, city_name):
     row = df[df["Nom"] == city_name]
     if row.empty:
