@@ -308,8 +308,8 @@ def afficher_onglet_population(city1, city2):
              # ➕ Calcul de l'évolution réelle entre 2016 et 2022
             pop_2016 = ligne_ville["PMUN2016"]
             pop_2022 = ligne_ville["PMUN2022"]
-            pop_2022 = float(pop_2022)
-            pop_2016 = float(pop_2016)
+            pop_2022 = float(str(pop_2022).replace(" ", "").replace(",", "."))
+            pop_2016 = float(str(pop_2016).replace(" ", "").replace(",", "."))
             evolution_pct = ((pop_2022 - pop_2016) / pop_2016) * 100
             evolution_color = "green" if evolution_pct >= 0 else "red"
             evolution_prefix = "+" if evolution_pct >= 0 else ""
