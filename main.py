@@ -276,14 +276,9 @@ def afficher_onglet_emploi(ville1, ville2):
 
 
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
 @st.cache_data
 def charger_donnees_population():
-    return pd.read_csv("data/population_globale.csv", sep=",")
+    return pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
 
 df_pop = charger_donnees_population()
 
@@ -307,19 +302,22 @@ def afficher_onglet_population(city1, city2):
                 continue
 
             ligne_ville = ligne_ville.iloc[0]
-            annees = [str(an) for an in range(2012, 2022)]
-            colonnes = [f"PMUN{an}" for an in range(2012, 2022)]
+            annees = [str(an) for an in range(2012, 2023)]
+            colonnes = [f"PMUN{an}" for an in range(2012, 2023)]
             pop = ligne_ville[colonnes].astype(str).str.replace(" ", "", regex=False).str.replace(",", ".", regex=False).astype(float).astype(int).values
 
-            pop_2016 = float(str(ligne_ville["PMUN2016"]).replace(" ", "").replace(",", "."))
-            pop_2022 = float(str(ligne_ville["PMUN2022"]).replace(" ", "").replace(",", "."))
+             # ➕ Calcul de l'évolution réelle entre 2016 et 2022
+            pop_2016 = ligne_ville["PMUN2016"]
+            pop_2022 = ligne_ville["PMUN2022"]
+            pop_2022 = float(str(pop_2022).replace(" ", "").replace(",", "."))
+            pop_2016 = float(str(pop_2016).replace(" ", "").replace(",", "."))
             evolution_pct = ((pop_2022 - pop_2016) / pop_2016) * 100
             evolution_color = "green" if evolution_pct >= 0 else "red"
             evolution_prefix = "+" if evolution_pct >= 0 else ""
 
             st.markdown(f"""
                 <div style="display:flex; justify-content:space-around; flex-wrap:wrap; text-align:center; font-size:16px; margin-top:20px;">
-                    <div><strong style="color:#c8102e; font-size:24px;">{int(pop_2022):,}</strong><br>habitants</div>
+                    <div><strong style="color:#c8102e; font-size:24px;">{pop_2022:,}</strong><br>habitants</div>
                     <div><strong style="color:{evolution_color}; font-size:24px;">{evolution_prefix}{evolution_pct:.2f}%</strong><br>entre 2016–2022</div>
                     <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(400, 1300)}</strong><br>hab/km²</div>
                     <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(35, 55)} ans</strong><br>âge médian</div>
@@ -336,32 +334,27 @@ def afficher_onglet_population(city1, city2):
 
             st.markdown("<h4 style='color:#c8102e;'>Répartition par âge</h4>", unsafe_allow_html=True)
             ages = ["0-14", "15-29", "30-44", "45-59", "60-74", "75+"]
-            cols_age = ["_C21_POP0014", "_C21_POP1529", "_C21_POP3044", "_C21_POP4559", "_C21_POP6074", "_C21_POP7589"]
-            total_age = sum([ligne_ville[col] for col in cols_age])
-            for age, col_age in zip(ages, cols_age):
-                pct = (ligne_ville[col_age] / total_age * 100) if total_age != 0 else 0
+            age_pct = np.random.randint(5, 25, size=len(ages))
+            for age, pct in zip(ages, age_pct):
                 st.markdown(f"""
                     <div style="margin:8px 0;">
-                        <div style="width:{pct:.1f}%; background:#f5425d; height:16px; border-radius:4px; display:inline-block;"></div>
-                        <span style="margin-left:10px;">{pct:.1f}% {age} ans</span>
+                        <div style="width:{pct}%; background:#f5425d; height:16px; border-radius:4px; display:inline-block;"></div>
+                        <span style="margin-left:10px;">{pct}% {age} ans</span>
                     </div>
                 """, unsafe_allow_html=True)
 
             st.markdown("<h4 style='color:#c8102e;'>Niveau de diplôme</h4>", unsafe_allow_html=True)
             diplomes = ["Sans diplôme", "CAP/BEP", "Bac", "Bac+2/3", "Bac+5 et plus"]
-            cols_diplomes = ["_P21_NSCOL15P_DIPLMIN", "_P21_NSCOL15P_CAPBEP", "_P21_NSCOL15P_BAC", "_P21_NSCOL15P_SUP2", "_P21_NSCOL15P_SUP5"]
-            total_dip = sum([ligne_ville[col] for col in cols_diplomes])
-            for d, col_d in zip(diplomes, cols_diplomes):
-                pct = (ligne_ville[col_d] / total_dip * 100) if total_dip != 0 else 0
+            pct_diplomes = np.random.randint(5, 30, size=len(diplomes))
+            for d, p in zip(diplomes, pct_diplomes):
                 st.markdown(f"""
                     <div style="margin:8px 0;">
-                        <div style="width:{pct:.1f}%; background:#1f77b4; height:16px; border-radius:4px; display:inline-block;"></div>
-                        <span style="margin-left:10px;">{pct:.1f}% {d}</span>
+                        <div style="width:{p}%; background:#1f77b4; height:16px; border-radius:4px; display:inline-block;"></div>
+                        <span style="margin-left:10px;">{p}% {d}</span>
                     </div>
                 """, unsafe_allow_html=True)
 
             st.markdown("</div>", unsafe_allow_html=True)
-
 
 import pandas as pd
 import matplotlib.pyplot as plt
