@@ -3,15 +3,26 @@ import streamlit as st
 
 @st.cache_data
 def load_city_data():
-    df = pd.read_csv("data/referentiel_geographique.csv", sep=";", on_bad_lines='skip')
-    df = df[df["geolocalisation"].notna()]
-    df["Latitude"] = df["geolocalisation"].apply(lambda x: float(x.split(",")[0]))
-    df["Longitude"] = df["geolocalisation"].apply(lambda x: float(x.split(",")[1]))
-    df["Nom"] = df["COM_NOM_MAJ_COURT"].str.title()
-    df["Département"] = df["DEP_NOM"]
-    df["Région"] = df["REG_NOM"]
-    df["Population"] = 20000 + (df.index % 15000)  # Valeurs fictives si manquantes
-    df["COM_CODE"] = df["COM_CODE"].astype(str)
+    # Chargement du fichier INSEE
+    df = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
+
+    # Création des colonnes utiles
+    df["COM_CODE"] = df["CODGEO"].astype(str)
+    df["Nom"] = df["LIBGEO"].str.title()
+
+    # Nettoyage et conversion de la population 2022
+    df["PMUN2022"] = df["PMUN2022"].astype(str).str.replace(" ", "").str.replace(",", ".")
+    df["Population"] = pd.to_numeric(df["PMUN2022"], errors="coerce")
+
+    # Filtrage des communes avec + de 20 000 habitants
+    df = df[df["Population"] > 20000]
+
+    # Colonnes factices pour compatibilité de l'appli
+    df["Département"] = df.get("DEP", "Inconnu")
+    df["Région"] = df.get("REG", "Inconnue")
+    df["Latitude"] = np.nan
+    df["Longitude"] = np.nan
+
     return df
 
 def get_city_info(df, city_name):
