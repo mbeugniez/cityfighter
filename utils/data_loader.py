@@ -3,27 +3,26 @@ import streamlit as st
 
 @st.cache_data
 def load_city_data():
-    # Chargement du fichier INSEE
+    # Chargement de la base
     df = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
 
-    # Création des colonnes utiles
-    df["COM_CODE"] = df["CODGEO"].astype(str)
+    # Nettoyage du nom de commune
     df["Nom"] = df["LIBGEO"].str.title()
 
-    # Nettoyage et conversion de la population 2022
+    # Nettoyage de la colonne population 2022
     df["PMUN2022"] = df["PMUN2022"].astype(str).str.replace(" ", "").str.replace(",", ".")
-    df["Population"] = pd.to_numeric(df["PMUN2022"], errors="coerce")
+    df["PMUN2022"] = pd.to_numeric(df["PMUN2022"], errors="coerce")
 
-    # Filtrage des communes avec + de 20 000 habitants
-    df = df[df["Population"] > 20000]
+    # Filtrage des communes de plus de 20 000 habitants
+    df = df[df["PMUN2022"] > 20000].copy()
 
-    # Colonnes factices pour compatibilité de l'appli
-    df["Département"] = df.get("DEP", "Inconnu")
-    df["Région"] = df.get("REG", "Inconnue")
-    df["Latitude"] = np.nan
-    df["Longitude"] = np.nan
+    # Création du code commune en chaîne de caractères
+    df["COM_CODE"] = df["CODGEO"].astype(str)
+    df["Population"] = df["PMUN2022"]
 
-    return df
+    # On conserve les colonnes utiles
+    colonnes_utiles = ["COM_CODE", "Nom", "Population", "DEP", "REG", "LIBGEO"]
+    return df[colonnes_utiles]
 
 def get_city_info(df, city_name):
     row = df[df["Nom"] == city_name]
