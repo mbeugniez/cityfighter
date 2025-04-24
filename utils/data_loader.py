@@ -3,32 +3,27 @@ import streamlit as st
 
 @st.cache_data
 def load_city_data():
-    # 🔹 Charger les populations INSEE
-    df_pop = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
-    df_pop["COM_CODE"] = df_pop["CODGEO"].astype(str).str.zfill(5)
-    df_pop["PMUN2022"] = df_pop["PMUN2022"].astype(str).str.replace(" ", "").str.replace(",", ".")
-    df_pop["PMUN2022"] = pd.to_numeric(df_pop["PMUN2022"], errors="coerce")
-    df_pop = df_pop[df_pop["PMUN2022"] > 20000]
-    df_pop = df_pop[["COM_CODE", "LIBGEO", "PMUN2022"]]
-    df_pop.rename(columns={"LIBGEO": "Nom", "PMUN2022": "Population"}, inplace=True)
-    df_pop["Nom"] = df_pop["Nom"].str.title()
+    df = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
 
-    # 🔹 Charger le référentiel géographique
-    df_geo = pd.read_csv("data/referentiel_geographique.csv", sep=";", on_bad_lines='skip')
-    df_geo = df_geo[df_geo["geolocalisation"].notna()]
-    df_geo["COM_CODE"] = df_geo["COM_CODE"].astype(str).str.zfill(5)
-    df_geo["Latitude"] = df_geo["geolocalisation"].apply(lambda x: float(x.split(",")[0]))
-    df_geo["Longitude"] = df_geo["geolocalisation"].apply(lambda x: float(x.split(",")[1]))
-    df_geo["Département"] = df_geo["DEP_NOM"]
-    df_geo["Région"] = df_geo["REG_NOM"]
+    # Nettoyage du code commune
+    df["COM_CODE"] = df["CODGEO"].astype(str).str.zfill(5)
 
-    # 🔹 Fusion des deux bases
-    df = pd.merge(df_pop, df_geo, on="COM_CODE", how="left")
+    # Nettoyage de la population 2022
+    df["PMUN2022"] = df["PMUN2022"].astype(str).str.replace(" ", "").str.replace(",", ".")
+    df["PMUN2022"] = pd.to_numeric(df["PMUN2022"], errors="coerce")
 
-    # 🔹 Nettoyage final
-    df = df[["COM_CODE", "Nom", "Population", "Département", "Région", "Latitude", "Longitude"]]
+    # Filtrage des communes avec plus de 20 000 habitants
+    df = df[df["PMUN2022"] > 20000]
 
-    return df
+    # Préparation des colonnes
+    df["Nom"] = df["LIBGEO"].str.title()
+    df["Département"] = "Donnée indisponible"
+    df["Région"] = "Donnée indisponible"
+    df["Latitude"] = None  # ou coordonnées fictives si besoin
+    df["Longitude"] = None
+    df["Population"] = df["PMUN2022"]
+
+    return df[["COM_CODE", "Nom", "Population", "Département", "Région", "Latitude", "Longitude"]]
 
 def get_city_info(df, city_name):
     row = df[df["Nom"] == city_name]
