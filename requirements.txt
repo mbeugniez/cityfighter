@@ -8,3 +8,4 @@ requests
 wikipedia
 wikipedia-api
 openpyxl
+plotly
