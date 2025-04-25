@@ -275,86 +275,128 @@ def afficher_onglet_emploi(ville1, ville2):
         """, unsafe_allow_html=True)
 
 
+import pandas as pd
+import numpy as np
+import streamlit as st
+import matplotlib.pyplot as plt
 
 @st.cache_data
-def charger_donnees_population():
-    return pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
+def charger_historique_population():
+    df = pd.read_csv("data/base-pop-historiques-1876-2022.csv", sep=";", skiprows=5)
+    df = df.rename(columns={"CODGEO": "INSEE_C"})
+    df["INSEE_C"] = df["INSEE_C"].astype(str)
+    df["LIBGEO_CLEAN"] = df["LIBGEO"].str.upper().str.normalize("NFKD") \
+                                   .str.replace(r"[^A-Z\s\-]", "", regex=True).str.strip()
+    return df
 
-df_pop = charger_donnees_population()
+@st.cache_data
+def charger_population_fusion():
+    df = pd.read_csv("data/population_fusion_avec_libgeov3.csv", sep=",", encoding="utf-8", dtype=str)
+    df["LIBGEO_CLEAN"] = df["LIBGEO"].str.upper().str.normalize("NFKD") \
+                                   .str.replace(r"[^A-Z\s\-]", "", regex=True).str.strip()
+    return df
 
 def afficher_onglet_population(city1, city2):
     st.markdown("## 👥 Population")
-    st.markdown("Indicateurs réels issus de l'INSEE (2012–2022).")
+    st.markdown("Indicateurs réels issus de l'INSEE.")
+
+    df_histo = charger_historique_population()
+    df_fusion = charger_population_fusion()
 
     col1, col2 = st.columns(2)
 
     for col, city, color in zip([col1, col2], [city1, city2], ['#1f77b4', '#ff7f0e']):
         with col:
+            city_clean = city.upper().strip()
             st.markdown(f"""
             <div style="background-color: white; padding: 30px; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,0.08);">
                 <h3 style="text-align:center; color:#c8102e;">Population à {city}</h3>
             """, unsafe_allow_html=True)
 
-            ligne_ville = df_pop[df_pop["LIBGEO"].str.upper() == city.upper()]
-
-            if ligne_ville.empty:
-                st.warning(f"Aucune donnée trouvée pour {city}.")
+            # === Données historiques ===
+            ville_histo = df_histo[df_histo["LIBGEO_CLEAN"] == city_clean]
+            if ville_histo.empty:
+                st.warning(f"Aucune donnée trouvée dans l'historique pour {city}.")
+                st.markdown("</div>", unsafe_allow_html=True)
                 continue
 
-            ligne_ville = ligne_ville.iloc[0]
+            ligne_histo = ville_histo.iloc[0]
             annees = [str(an) for an in range(2012, 2023)]
-            colonnes = [f"PMUN{an}" for an in range(2012, 2023)]
-            pop = ligne_ville[colonnes].astype(str).str.replace(" ", "", regex=False).str.replace(",", ".", regex=False).astype(float).astype(int).values
+            colonnes_pop = [f"PMUN{an}" for an in annees]
 
-             # ➕ Calcul de l'évolution réelle entre 2016 et 2022
-            pop_2016 = ligne_ville["PMUN2016"]
-            pop_2022 = ligne_ville["PMUN2022"]
-            pop_2022 = float(str(pop_2022).replace(" ", "").replace(",", "."))
-            pop_2016 = float(str(pop_2016).replace(" ", "").replace(",", "."))
-            evolution_pct = ((pop_2022 - pop_2016) / pop_2016) * 100
-            evolution_color = "green" if evolution_pct >= 0 else "red"
-            evolution_prefix = "+" if evolution_pct >= 0 else ""
+            try:
+                pop_2022 = float(str(ligne_histo["PMUN2022"]).replace(" ", "").replace(",", "."))
+                pop_2016 = float(str(ligne_histo["PMUN2016"]).replace(" ", "").replace(",", "."))
+                evolution_pct = ((pop_2022 - pop_2016) / pop_2016) * 100
+                evolution_color = "green" if evolution_pct >= 0 else "red"
+                evolution_prefix = "+" if evolution_pct >= 0 else ""
 
-            st.markdown(f"""
-                <div style="display:flex; justify-content:space-around; flex-wrap:wrap; text-align:center; font-size:16px; margin-top:20px;">
-                    <div><strong style="color:#c8102e; font-size:24px;">{pop_2022:,}</strong><br>habitants</div>
-                    <div><strong style="color:{evolution_color}; font-size:24px;">{evolution_prefix}{evolution_pct:.2f}%</strong><br>entre 2016–2022</div>
-                    <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(400, 1300)}</strong><br>hab/km²</div>
-                    <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(35, 55)} ans</strong><br>âge médian</div>
-                </div>
-            """, unsafe_allow_html=True)
+                # Graphique
+                pop = [float(str(ligne_histo[an]).replace(" ", "").replace(",", ".")) for an in colonnes_pop]
 
-            st.markdown("<h4 style='color:#c8102e; margin-top:30px;'>Évolution de la population</h4>", unsafe_allow_html=True)
-            fig, ax = plt.subplots()
-            ax.plot(annees, pop, marker='o', color=color)
-            ax.set_ylabel("Habitants")
-            ax.set_xlabel("Année")
-            ax.grid(True)
-            st.pyplot(fig)
-
-            st.markdown("<h4 style='color:#c8102e;'>Répartition par âge</h4>", unsafe_allow_html=True)
-            ages = ["0-14", "15-29", "30-44", "45-59", "60-74", "75+"]
-            age_pct = np.random.randint(5, 25, size=len(ages))
-            for age, pct in zip(ages, age_pct):
                 st.markdown(f"""
-                    <div style="margin:8px 0;">
-                        <div style="width:{pct}%; background:#f5425d; height:16px; border-radius:4px; display:inline-block;"></div>
-                        <span style="margin-left:10px;">{pct}% {age} ans</span>
+                    <div style="display:flex; justify-content:space-around; flex-wrap:wrap; text-align:center; font-size:16px; margin-top:20px;">
+                        <div><strong style="color:#c8102e; font-size:24px;">{pop_2022:,.0f}</strong><br>habitants</div>
+                        <div><strong style="color:{evolution_color}; font-size:24px;">{evolution_prefix}{evolution_pct:.2f}%</strong><br>entre 2016–2022</div>
+                        <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(400, 1300)}</strong><br>hab/km²</div>
+                        <div><strong style="color:#c8102e; font-size:24px;">{np.random.randint(35, 55)} ans</strong><br>âge médian</div>
                     </div>
                 """, unsafe_allow_html=True)
 
-            st.markdown("<h4 style='color:#c8102e;'>Niveau de diplôme</h4>", unsafe_allow_html=True)
-            diplomes = ["Sans diplôme", "CAP/BEP", "Bac", "Bac+2/3", "Bac+5 et plus"]
-            pct_diplomes = np.random.randint(5, 30, size=len(diplomes))
-            for d, p in zip(diplomes, pct_diplomes):
-                st.markdown(f"""
-                    <div style="margin:8px 0;">
-                        <div style="width:{p}%; background:#1f77b4; height:16px; border-radius:4px; display:inline-block;"></div>
-                        <span style="margin-left:10px;">{p}% {d}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+                st.markdown("<h4 style='color:#c8102e; margin-top:30px;'>Évolution de la population</h4>", unsafe_allow_html=True)
+                fig, ax = plt.subplots()
+                ax.plot(annees, pop, marker='o', color=color)
+                ax.set_ylabel("Habitants")
+                ax.set_xlabel("Année")
+                ax.grid(True)
+                st.pyplot(fig)
+
+            except Exception as e:
+                st.error(f"Erreur graphique ou population : {e}")
+                st.markdown("</div>", unsafe_allow_html=True)
+                continue
+
+            # === Données fusionnées ===
+            ville_fusion = df_fusion[df_fusion["LIBGEO_CLEAN"] == city_clean]
+            if ville_fusion.empty:
+                st.warning(f"Aucune donnée de répartition pour {city}.")
+                st.markdown("</div>", unsafe_allow_html=True)
+                continue
+
+            ligne_fusion = ville_fusion.iloc[0]
+
+            try:
+                st.markdown("<h4 style='color:#c8102e;'>Répartition par âge</h4>", unsafe_allow_html=True)
+                ages_cols = ["0_14", "15_29", "30_44", "45_59", "60_74", "75_89", "90_plus"]
+                labels_ages = ["0-14", "15-29", "30-44", "45-59", "60-74", "75-89", "90+"]
+
+                age_pct = [float(str(ligne_fusion[col]).replace(",", ".")) for col in ages_cols]
+                for age, pct in zip(labels_ages, age_pct):
+                    st.markdown(f"""
+                        <div style="margin:8px 0;">
+                            <div style="width:{pct}%; background:#f5425d; height:16px; border-radius:4px; display:inline-block;"></div>
+                            <span style="margin-left:10px;">{pct:.1f}% {age} ans</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                st.markdown("<h4 style='color:#c8102e;'>Niveau de diplôme</h4>", unsafe_allow_html=True)
+                diplomes = ["Sans_diplome", "CAP_BEP", "Bac", "Bac_2_3", "Bac_5_et_plus"]
+                labels_diplomes = ["Sans diplôme", "CAP/BEP", "Bac", "Bac+2/3", "Bac+5 et plus"]
+                pct_diplomes = [float(str(ligne_fusion[col]).replace(",", ".")) for col in diplomes]
+                for d, p in zip(labels_diplomes, pct_diplomes):
+                    st.markdown(f"""
+                        <div style="margin:8px 0;">
+                            <div style="width:{p}%; background:#1f77b4; height:16px; border-radius:4px; display:inline-block;"></div>
+                            <span style="margin-left:10px;">{p:.1f}% {d}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+            except Exception as e:
+                st.error(f"Erreur sur les données par âge ou diplôme : {e}")
 
             st.markdown("</div>", unsafe_allow_html=True)
+
+
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -494,45 +536,98 @@ def afficher_onglet_securite(city1, city2):
     df = pd.DataFrame(data)
     st.dataframe(df, use_container_width=True)
 
+import unicodedata
 
+def nettoyer_texte(s):
+    s = str(s)
+    s = s.replace("", "É").replace("", "É").replace("", "È").replace("", "Ä")
+    s = unicodedata.normalize("NFKC", s)
+    return s.encode("latin1", errors="ignore").decode("latin1", errors="ignore")
+
+@st.cache_data
+def charger_donnees_elections():
+    df = pd.read_csv("data/resultats-par-niveau-burvot-t1-france-entiere.csv", sep=";", encoding="latin1", low_memory=False)
+
+    df.rename(columns={"Libell\x82 de la commune": "Libellé de la commune"}, inplace=True)
+    df["ville_clean"] = df["Libellé de la commune"].astype(str).str.upper().str.strip()
+
+    resultats = []
+
+    for i in range(1, 13):
+        nom_col = f"Nom{i}"
+        prenom_col = f"Prenom{i}" if f"Prenom{i}" in df.columns else f"Prénom{i}"
+        voix_col = f"Voix{i}"
+
+        if all(col in df.columns for col in [nom_col, prenom_col, voix_col]):
+            temp = df[["ville_clean", nom_col, prenom_col, voix_col]].copy()
+            temp["nom_candidat"] = (
+                (temp[nom_col].fillna("") + " " + temp[prenom_col].fillna(""))
+                .str.strip()
+                .apply(nettoyer_texte)
+            )
+            temp["voix"] = pd.to_numeric(temp[voix_col], errors="coerce")
+            resultats.append(temp[["ville_clean", "nom_candidat", "voix"]])
+
+    if resultats:
+        df_long = pd.concat(resultats, ignore_index=True)
+        df_long = df_long.dropna(subset=["voix"])
+        return df_long
+    else:
+        return pd.DataFrame()
+
+
+import plotly.graph_objects as go
+
+import plotly.express as px
 
 def afficher_onglet_politique(city1, city2):
     st.markdown("## 🗳️ Politique")
-    st.markdown("Résultats fictifs des dernières élections présidentielles comparées.")
+    st.markdown("Résultats du 1er tour des élections présidentielles (source réelle).")
 
-    elections = [
-        {"année": "2022", "candidat1": "Marine LE PEN", "score1": 50, "candidat2": "Emmanuel MACRON", "score2": 50},
-        {"année": "2017", "candidat1": "Emmanuel MACRON", "score1": 56, "candidat2": "Marine LE PEN", "score2": 44},
-        {"année": "2012", "candidat1": "Nicolas SARKOZY", "score1": 63.89, "candidat2": "François HOLLANDE", "score2": 36.11},
-        {"année": "2007", "candidat1": "Nicolas SARKOZY", "score1": 63.93, "candidat2": "Ségolène ROYAL", "score2": 36.07},
-    ]
+    df = charger_donnees_elections()
+    villes = [city1.upper().strip(), city2.upper().strip()]
 
-    for e in elections:
-        col1, col2 = st.columns(2)
+    # Agrégation des voix par ville et candidat
+    df_agg = (
+        df[df["ville_clean"].isin(villes)]
+        .groupby(["ville_clean", "nom_candidat"], as_index=False)["voix"]
+        .sum()
+    )
 
-        for col, city, score, candidat_gagnant, candidat_perdant, score_perdant in zip(
-            [col1, col2],
-            [city1, city2],
-            [e["score1"], e["score2"]],
-            [e["candidat1"], e["candidat2"]],
-            [e["candidat2"], e["candidat1"]],
-            [e["score2"], e["score1"]],
-        ):
-            with col:
-                st.markdown(f"""
-                    <div style="background-color:white; padding:25px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.07); margin-bottom:1.5rem;">
-                        <h4 style="text-align:center; color:#2c3e50;">{city} – {e['année']}</h4>
-                        <div style="text-align:center;">
-                            <div style="margin:auto; width:120px; height:120px; border-radius:50%; border:10px solid #ffcc00; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:bold;">
-                                {score}%
-                            </div>
-                            <div style="font-size:18px; margin-top:10px; color:#c8102e;"><strong>{candidat_gagnant}</strong></div>
-                            <div style="font-size:14px; color:#333;">{score_perdant} % {candidat_perdant}</div>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+    if df_agg.empty:
+        st.warning("Aucun résultat trouvé pour les villes sélectionnées.")
+        return
 
-    st.markdown("<p style='font-size:13px; text-align:center; margin-top:10px; color:#777;'>Source : Ministère de l’Intérieur (simulation)</p>", unsafe_allow_html=True)
+    # Calcul des pourcentages par ville
+    df_agg["pct"] = df_agg.groupby("ville_clean")["voix"].transform(lambda x: x / x.sum() * 100)
+
+    # Deux colonnes côte à côte
+    col1, col2 = st.columns(2)
+
+    for ville, col in zip(villes, [col1, col2]):
+        with col:
+            st.markdown(f"### {ville.title()}")
+            df_ville = df_agg[df_agg["ville_clean"] == ville].sort_values(by="pct", ascending=True)
+
+            fig = px.bar(
+                df_ville,
+                x="pct",
+                y="nom_candidat",
+                orientation="h",
+                labels={"pct": "Pourcentage", "nom_candidat": "Candidat"},
+                text_auto=".1f"
+            )
+            fig.update_layout(
+                height=600,
+                margin=dict(t=20, b=20),
+                yaxis_title="",
+                xaxis_title="%",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("<p style='font-size:13px; text-align:center; margin-top:10px; color:#777;'>Source : Ministère de l’Intérieur</p>", unsafe_allow_html=True)
+
+
 
 
 
