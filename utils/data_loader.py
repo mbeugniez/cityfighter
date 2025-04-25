@@ -3,7 +3,7 @@ import streamlit as st
 
 @st.cache_data
 def load_city_data():
-    df = pd.read_csv("data/referentiel_plus_20000.csv", sep=",")
+    df = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
     df = df[df["geolocalisation"].notna()]
     df["Latitude"] = df["geolocalisation"].apply(lambda x: float(x.split(",")[0]))
     df["Longitude"] = df["geolocalisation"].apply(lambda x: float(x.split(",")[1]))
