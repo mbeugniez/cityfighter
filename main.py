@@ -381,8 +381,6 @@ def afficher_onglet_emploi(token, referentiel):
 # ==================================================================
 
 # 4. Partie principale
-if __name__ == "__main__":
-    st.set_page_config(page_title="CityFighter - Emploi", layout="wide")
 
     # Charger ton référentiel de communes
     referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
