@@ -267,15 +267,18 @@ def get_token(client_id, client_secret):
         return None
 
 # 2. Fonction pour récupérer les offres d'emploi
-def fetch_offres(code_insee, keyword, token, limit=10, ordre="Plus récentes"):
+def fetch_offres(code_insee, keyword, limit, token, ordre="Plus récentes"):
     headers = {"Authorization": f"Bearer {token}"}
     params = {
         "commune": code_insee,
         "range": f"0-{limit - 1}"
     }
-    if keyword:
+
+    # ➔ Si aucun mot-clé, on met "*" pour forcer la recherche
+    if keyword.strip() != "":
         params["motsCles"] = keyword
-        params["range"] = "0-149"  # Plus large quand il y a un mot-clé
+    else:
+        params["motsCles"] = "*"
 
     response = requests.get(
         "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search",
@@ -302,6 +305,7 @@ def fetch_offres(code_insee, keyword, token, limit=10, ordre="Plus récentes"):
         reverse=(ordre == "Plus récentes")
     )
     return offres_sorted
+
 
 # 3. Initialiser
 client_id = "PAR_cityfighter_87822568bc2896de7af0df9770a1824feb4f21b9c5a7a8870251a64e88a2db4c"
