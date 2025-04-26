@@ -622,7 +622,7 @@ def charger_donnees_securite():
 
 def afficher_onglet_securite(city1, city2):
     st.markdown("## 🛡️ Sécurité")
-    st.markdown("Comparaison du taux de criminalité pour 100 000 habitants (vraies données publiques).")
+    st.markdown("Comparaison du taux de criminalité pour 100 000 habitants (données réelles).")
 
     df_securite = charger_donnees_securite()
 
@@ -648,10 +648,10 @@ def afficher_onglet_securite(city1, city2):
         return
 
     # Taux total crimes pour chaque ville
-    total1 = ville1_data["taux_pour_mille"].sum() * 1000  # pour 100 000 habitants
+    total1 = ville1_data["taux_pour_mille"].sum() * 1000
     total2 = ville2_data["taux_pour_mille"].sum() * 1000
 
-    moyenne_nationale = 5258  # Peut être remplacé par un vrai calcul moyen plus tard
+    moyenne_nationale = 5258  # Valeur fictive pour l'exemple
 
     col1, col2 = st.columns(2)
 
@@ -675,43 +675,30 @@ def afficher_onglet_securite(city1, city2):
         </div>
         """, unsafe_allow_html=True)
 
-    # ======================================
-    # 🛡️ Détails par type d'infraction
+    # ========================================
+    # 📊 Détails toutes infractions disponibles
     st.markdown("### 📊 Détails par type d'infraction")
 
-    infractions_selectionnees = [
-        "Cambriolages de logement",
-        "Vols de véhicules",
-        "Vols dans les véhicules",
-        "Vols sans violence contre des personnes",
-        "Violences sexuelles"
-    ]
+    # Prendre toutes les infractions communes aux deux villes
+    infractions = sorted(
+        set(ville1_data["indicateur"].unique()) | set(ville2_data["indicateur"].unique())
+    )
 
-    taux1 = ville1_data[ville1_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
-    taux2 = ville2_data[ville2_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
+    taux1 = ville1_data[["indicateur", "taux_pour_mille"]].set_index("indicateur").reindex(infractions).fillna(0)
+    taux2 = ville2_data[["indicateur", "taux_pour_mille"]].set_index("indicateur").reindex(infractions).fillna(0)
 
-    comparaison = pd.merge(
-        taux1, taux2, on="indicateur", how="outer", suffixes=(f" ({city1})", f" ({city2})")
-    ).fillna(0)
-
-    # Si vide -> info
-    if comparaison.empty:
-        st.warning("Aucune donnée disponible pour les infractions sélectionnées.")
-        return
-
-    # Création du tableau final
+    # Création du tableau
     data = {
-        "Infraction": comparaison["indicateur"],
-        city1: (comparaison[f"taux_pour_mille ({city1})"] * 1000).round(0).astype(int),
-        city2: (comparaison[f"taux_pour_mille ({city2})"] * 1000).round(0).astype(int),
-        "National": [moyenne_nationale // 10] * len(comparaison)  # simulation moyenne
+        "Infraction": infractions,
+        city1: (taux1["taux_pour_mille"] * 1000).round(0).astype(int),
+        city2: (taux2["taux_pour_mille"] * 1000).round(0).astype(int),
+        "National": [moyenne_nationale // 10] * len(infractions)  # Simulé
     }
 
     df_final = pd.DataFrame(data)
     st.dataframe(df_final, use_container_width=True)
 
     st.markdown(f"<p style='font-size:12px; text-align:center; margin-top:10px; color:#777;'>Source : données publiques — taux pour 100 000 habitants</p>", unsafe_allow_html=True)
-
 
 import unicodedata
 
