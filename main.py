@@ -298,6 +298,9 @@ def fetch_offres(code_insee, keyword, limit, token, ordre="Plus récentes"):
         reverse=(ordre == "Plus récentes")
     )
     return offres_sorted
+    
+client_id = "PAR_cityfighter_87822568bc2896de7af0df9770a1824feb4f21b9c5a7a8870251a64e88a2db4c"
+client_secret = "820b9f6263d658d14b921e37a5c6a0f0f6e3705e4ade1c02372fd3927ef95625"
 
 token = get_token(client_id, client_secret)
 referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
