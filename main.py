@@ -602,18 +602,27 @@ def afficher_onglet_immobilier(city1, city2):
 
 
 @st.cache_data
+@st.cache_data
 def charger_donnees_securite():
     df = pd.read_csv("data/donnees_securite_filtrees.csv", sep=";", dtype=str)
     df.columns = df.columns.str.strip()
     df['indicateur'] = df['indicateur'].str.strip()
 
-    # Correction encodage
+    # Correction accents
     df['indicateur'] = df['indicateur'].str.normalize('NFKD').str.encode('latin1', errors='ignore').str.decode('latin1')
 
     df['CODGEO_2024'] = df['CODGEO_2024'].astype(str)
     df['annee'] = df['annee'].astype(int)
-    df['taux_pour_mille'] = pd.to_numeric(df['taux_pour_mille'], errors='coerce')
+
+    # ✅ Correction ici sur taux_pour_mille
+    df['taux_pour_mille'] = (
+        df['taux_pour_mille']
+        .str.replace(',', '.', regex=False)  # Remplacer virgule par point
+        .astype(float)                       # Convertir en float
+    )
+
     return df
+
 
 def afficher_onglet_securite(city1, city2):
     st.markdown("## 🛡️ Sécurité (Sans filtre sur l'année)")
