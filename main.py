@@ -267,53 +267,37 @@ def get_token(client_id, client_secret):
         return None
 
 # 2. Fonction pour récupérer les offres d'emploi
-def fetch_offres(code_insee, keyword, limit, token, ordre="Plus récentes"):
+def fetch_offres(code_insee, keyword, limit, token):
     headers = {"Authorization": f"Bearer {token}"}
     params = {
         "commune": code_insee,
+        "motsCles": keyword,
         "range": f"0-{limit - 1}"
     }
-
-    # ➔ Si aucun mot-clé, on met "*" pour forcer la recherche
-    if keyword.strip() != "":
-        params["motsCles"] = keyword
-    else:
-        params["motsCles"] = "*"
-
     response = requests.get(
         "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search",
         headers=headers, params=params
     )
-
     if response.status_code != 200:
-        st.error(f"Erreur API France Travail ({code_insee}) : {response.status_code}")
         return []
 
     try:
         data = response.json()
     except requests.exceptions.JSONDecodeError:
-        st.warning("⚠️ Problème lors de la lecture de la réponse JSON.")
         return []
 
     offres = data.get("resultats", [])
-    if not offres:
-        return []
+    return offres
 
-    offres_sorted = sorted(
-        offres,
-        key=lambda x: datetime.strptime(x.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ"),
-        reverse=(ordre == "Plus récentes")
-    )
-    return offres_sorted
-
-
-# 3. Initialiser
+# Initialisation du token et du référentiel
 client_id = "PAR_cityfighter_87822568bc2896de7af0df9770a1824feb4f21b9c5a7a8870251a64e88a2db4c"
 client_secret = "820b9f6263d658d14b921e37a5c6a0f0f6e3705e4ade1c02372fd3927ef95625"
+
 token = get_token(client_id, client_secret)
+
 referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
 
-# 4. Fonction pour afficher l'onglet Emploi
+# 3. Fonction pour afficher l'onglet Emploi
 def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
 
@@ -333,8 +317,7 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
         st.error(f"❌ Ville {city2} introuvable dans le référentiel !")
         st.stop()
 
-    # Champ pour filtrer par mot-clé
-    keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "")
+    keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "").strip()
 
     col1, col2 = st.columns(2)
 
@@ -342,39 +325,30 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
         offres_ville1 = fetch_offres(code_insee=code_insee1, keyword=keyword, limit=100, token=token)
         nb_offres1 = len(offres_ville1)
 
-        st.markdown(f"""
-        <div style="background-color:white; padding:25px; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,0.08);">
-            <h3 style="color:#d0021b; text-align:center;">💼 Emploi à {city1}</h3>
-            <p style="text-align:center; font-size:16px;"><strong>{nb_offres1}</strong> offre(s) d'emploi trouvée(s).</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"### 💼 {city1}")
+        st.markdown(f"**Nombre d'offres :** {nb_offres1}")
 
-        if nb_offres1 > 0:
-            for offre in offres_ville1[:10]:
+        if keyword and nb_offres1 > 0:
+            st.markdown("### 🔗 Offres correspondantes :")
+            for offre in offres_ville1:
                 titre = offre.get("intitule", "Titre inconnu")
-                date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                st.markdown(f"• **{titre}** *(publié le {date})*")
-        else:
-            st.info("Aucune offre trouvée pour cette ville.")
+                lien = offre.get("origineOffre", {}).get("urlOrigine", "#")
+                st.markdown(f"- [{titre}]({lien})")
 
     with col2:
         offres_ville2 = fetch_offres(code_insee=code_insee2, keyword=keyword, limit=100, token=token)
         nb_offres2 = len(offres_ville2)
 
-        st.markdown(f"""
-        <div style="background-color:white; padding:25px; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,0.08);">
-            <h3 style="color:#d0021b; text-align:center;">💼 Emploi à {city2}</h3>
-            <p style="text-align:center; font-size:16px;"><strong>{nb_offres2}</strong> offre(s) d'emploi trouvée(s).</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"### 💼 {city2}")
+        st.markdown(f"**Nombre d'offres :** {nb_offres2}")
 
-        if nb_offres2 > 0:
-            for offre in offres_ville2[:10]:
+        if keyword and nb_offres2 > 0:
+            st.markdown("### 🔗 Offres correspondantes :")
+            for offre in offres_ville2:
                 titre = offre.get("intitule", "Titre inconnu")
-                date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                st.markdown(f"• **{titre}** *(publié le {date})*")
-        else:
-            st.info("Aucune offre trouvée pour cette ville.")
+                lien = offre.get("origineOffre", {}).get("urlOrigine", "#")
+                st.markdown(f"- [{titre}]({lien})")
+
 
 
 import pandas as pd
