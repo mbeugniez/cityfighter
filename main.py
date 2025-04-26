@@ -616,10 +616,9 @@ def charger_donnees_securite():
     return df
 
 def afficher_onglet_securite(city1, city2):
-    st.markdown("## 🛡️ Sécurité (Mode debug ON)")
+    st.markdown("## 🛡️ Sécurité (Sans filtre sur l'année)")
 
     df_securite = charger_donnees_securite()
-    st.write("✅ Aperçu des données sécurité :", df_securite.head())
 
     referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";", dtype=str)
     referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
@@ -637,11 +636,9 @@ def afficher_onglet_securite(city1, city2):
     st.write(f"Code INSEE pour {city1} :", code_insee1)
     st.write(f"Code INSEE pour {city2} :", code_insee2)
 
-    annee_dispo = df_securite["annee"].max()
-    st.write("Année disponible utilisée :", annee_dispo)
-
-    ville1_data = df_securite[(df_securite["CODGEO_2024"] == str(code_insee1)) & (df_securite["annee"] == annee_dispo)]
-    ville2_data = df_securite[(df_securite["CODGEO_2024"] == str(code_insee2)) & (df_securite["annee"] == annee_dispo)]
+    # ✅ On ne filtre QUE sur la ville (pas sur l'année)
+    ville1_data = df_securite[df_securite["CODGEO_2024"] == str(code_insee1)]
+    ville2_data = df_securite[df_securite["CODGEO_2024"] == str(code_insee2)]
 
     st.write(f"🔵 Données brutes {city1} :", ville1_data)
     st.write(f"🟠 Données brutes {city2} :", ville2_data)
@@ -688,11 +685,13 @@ def afficher_onglet_securite(city1, city2):
         ax.barh(comparaison["Infraction"], comparaison[f"taux_pour_mille ({city1})"], label=city1, alpha=0.7)
         ax.barh(comparaison["Infraction"], -comparaison[f"taux_pour_mille ({city2})"], label=city2, alpha=0.7)
         ax.axvline(0, color='black')
-        ax.set_xlabel("Taux pour 1000 habitants (+ pour "+city1+" / - pour "+city2+")")
+        ax.set_xlabel(f"Taux pour 1000 habitants (+{city1} / -{city2})")
         ax.legend()
         st.pyplot(fig)
     except Exception as e:
-        st.error(f"Erreur graphique : {e}")
+        st.error(f"Erreur lors de la création du graphique : {e}")
+
+    st.markdown(f"<p style='font-size:12px; text-align:center; color:gray;'>Source : Données publiques (année non filtrée)</p>", unsafe_allow_html=True)
 
 
 import unicodedata
