@@ -601,49 +601,99 @@ def afficher_onglet_immobilier(city1, city2):
 
 
 
+@st.cache_data
+def charger_donnees_securite():
+    df = pd.read_csv("data/donnees_securite_filtrees.csv", sep=";", dtype=str)
+    df.columns = df.columns.str.strip()
+    df['indicateur'] = df['indicateur'].str.strip()
+
+    # Correction encodage
+    df['indicateur'] = df['indicateur'].str.normalize('NFKD').str.encode('latin1', errors='ignore').str.decode('latin1')
+
+    df['CODGEO_2024'] = df['CODGEO_2024'].astype(str)
+    df['annee'] = df['annee'].astype(int)
+    df['taux_pour_mille'] = pd.to_numeric(df['taux_pour_mille'], errors='coerce')
+    return df
+
 def afficher_onglet_securite(city1, city2):
-    st.markdown("## 🛡️ Sécurité")
-    st.markdown("Comparaison du taux de criminalité pour 100 000 habitants. Données fictives à remplacer.")
+    st.markdown("## 🛡️ Sécurité (Mode debug ON)")
 
-    col1, col2 = st.columns(2)
+    df_securite = charger_donnees_securite()
+    st.write("✅ Aperçu des données sécurité :", df_securite.head())
 
-    with col1:
-        st.markdown(f"""
-        <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 12px rgba(0,0,0,0.08);">
-            <h4 style="color: #c8102e;">{city1}</h4>
-            <p><strong style="font-size: 24px; color: #d90429;">3 159</strong> crimes et délits pour 100 000 habitants.</p>
-            <p><strong>Moyenne nationale :</strong> 5 258</p>
-            <p>Cette commune dépend de la zone CGD fictive X regroupant 180 communes.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";", dtype=str)
+    referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
 
-    with col2:
-        st.markdown(f"""
-        <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 12px rgba(0,0,0,0.08);">
-            <h4 style="color: #c8102e;">{city2}</h4>
-            <p><strong style="font-size: 24px; color: #d90429;">2 781</strong> crimes et délits pour 100 000 habitants.</p>
-            <p><strong>Moyenne nationale :</strong> 5 258</p>
-            <p>Cette commune dépend de la zone CGD fictive Y regroupant 170 communes.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    city1_clean = city1.upper().strip()
+    city2_clean = city2.upper().strip()
 
-    # Tableau comparatif
-    st.markdown("### 📊 Détails par type d'infraction")
-    data = {
-        "Infraction": [
-            "Cambriolages",
-            "Vols automobiles",
-            "Vols de particulier",
-            "Violences physiques",
-            "Violences sexuelles"
-        ],
-        city1: [407, 493, 322, 387, 67],
-        city2: [390, 470, 280, 310, 72],
-        "National": [518, 707, 1019, 655, 76]
-    }
+    try:
+        code_insee1 = referentiel.loc[referentiel["Nom_clean"] == city1_clean, "COM_CODE"].values[0]
+        code_insee2 = referentiel.loc[referentiel["Nom_clean"] == city2_clean, "COM_CODE"].values[0]
+    except IndexError:
+        st.error("❌ Une des villes est introuvable dans le référentiel.")
+        return
 
-    df = pd.DataFrame(data)
-    st.dataframe(df, use_container_width=True)
+    st.write(f"Code INSEE pour {city1} :", code_insee1)
+    st.write(f"Code INSEE pour {city2} :", code_insee2)
+
+    annee_dispo = df_securite["annee"].max()
+    st.write("Année disponible utilisée :", annee_dispo)
+
+    ville1_data = df_securite[(df_securite["CODGEO_2024"] == str(code_insee1)) & (df_securite["annee"] == annee_dispo)]
+    ville2_data = df_securite[(df_securite["CODGEO_2024"] == str(code_insee2)) & (df_securite["annee"] == annee_dispo)]
+
+    st.write(f"🔵 Données brutes {city1} :", ville1_data)
+    st.write(f"🟠 Données brutes {city2} :", ville2_data)
+
+    if ville1_data.empty or ville2_data.empty:
+        st.warning("⚠️ Pas de données pour l'une des deux villes.")
+        return
+
+    infractions_selectionnees = [
+        "Cambriolages de logement",
+        "Vols de véhicules",
+        "Vols dans les véhicules",
+        "Vols sans violence contre des personnes",
+        "Violences sexuelles"
+    ]
+
+    st.write("✅ Infractions sélectionnées :", infractions_selectionnees)
+
+    st.write("✅ Infractions disponibles pour", city1, ":", ville1_data["indicateur"].unique())
+    st.write("✅ Infractions disponibles pour", city2, ":", ville2_data["indicateur"].unique())
+
+    taux1 = ville1_data[ville1_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
+    taux2 = ville2_data[ville2_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
+
+    st.write(f"Taux pour {city1} :", taux1)
+    st.write(f"Taux pour {city2} :", taux2)
+
+    comparaison = pd.merge(
+        taux1, taux2, on="indicateur", how="outer", suffixes=(f" ({city1})", f" ({city2})")
+    ).fillna(0)
+
+    if comparaison.empty:
+        st.warning("⚠️ Aucune correspondance sur les infractions.")
+        return
+
+    st.dataframe(comparaison.rename(columns={
+        "indicateur": "Infraction",
+        f"taux_pour_mille ({city1})": f"{city1} (‰)",
+        f"taux_pour_mille ({city2})": f"{city2} (‰)"
+    }), use_container_width=True)
+
+    try:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.barh(comparaison["Infraction"], comparaison[f"taux_pour_mille ({city1})"], label=city1, alpha=0.7)
+        ax.barh(comparaison["Infraction"], -comparaison[f"taux_pour_mille ({city2})"], label=city2, alpha=0.7)
+        ax.axvline(0, color='black')
+        ax.set_xlabel("Taux pour 1000 habitants (+ pour "+city1+" / - pour "+city2+")")
+        ax.legend()
+        st.pyplot(fig)
+    except Exception as e:
+        st.error(f"Erreur graphique : {e}")
+
 
 import unicodedata
 
