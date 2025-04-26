@@ -310,8 +310,11 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
 
     # Récupérer les codes INSEE à partir du référentiel
-    code_insee1 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city1, "COM_CODE"].values[0]
-    code_insee2 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city2, "COM_CODE"].values[0]
+    city1_upper = city1.upper()
+    city2_upper = city2.upper()
+
+    code_insee1 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city1_upper, "COM_CODE"].values[0]
+    code_insee2 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city2_upper, "COM_CODE"].values[0]
 
     # Champ pour filtrer par mot-clé
     keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "")
