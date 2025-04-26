@@ -811,7 +811,7 @@ for i, section in enumerate(sections):
             afficher_onglet_meteo(city1, city2)
         
         elif section["label"] == "Emploi":
-            afficher_onglet_emploi(city1, city2)
+            afficher_onglet_emploi(token, referentiel)
 
         elif section["label"] == "Population":
             afficher_onglet_population(city1, city2)
