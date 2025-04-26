@@ -310,11 +310,26 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
 
     # Récupérer les codes INSEE à partir du référentiel
-    city1_upper = city1.upper()
-    city2_upper = city2.upper()
+    # Créer un nom propre dans referentiel
+    referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
+    
+    # Nettoyer city1 et city2
+    city1_clean = city1.upper().strip()
+    city2_clean = city2.upper().strip()
+    
+    # Chercher les codes INSEE
+    try:
+        code_insee1 = referentiel.loc[referentiel["Nom_clean"] == city1_clean, "COM_CODE"].values[0]
+    except IndexError:
+        st.error(f"❌ Ville {city1} introuvable dans le référentiel !")
+        st.stop()
+    
+    try:
+        code_insee2 = referentiel.loc[referentiel["Nom_clean"] == city2_clean, "COM_CODE"].values[0]
+    except IndexError:
+        st.error(f"❌ Ville {city2} introuvable dans le référentiel !")
+        st.stop()
 
-    code_insee1 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city1_upper, "COM_CODE"].values[0]
-    code_insee2 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city2_upper, "COM_CODE"].values[0]
 
     # Champ pour filtrer par mot-clé
     keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "")
