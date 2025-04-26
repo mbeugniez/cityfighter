@@ -243,12 +243,10 @@ def afficher_onglet_meteo(city1, city2):
             else:
                 st.warning(f"Aucune donnée météo disponible pour {city}")
 
-
 import pandas as pd
 import requests
 from datetime import datetime
 import streamlit as st
-
 
 # 1. Fonction pour récupérer un token France Travail
 def get_token(client_id, client_secret):
@@ -301,99 +299,64 @@ def fetch_offres(code_insee, keyword, limit, token, ordre="Plus récentes"):
     )
     return offres_sorted
 
-referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
-client_id = "PAR_cityfighter_87822568bc2896de7af0df9770a1824feb4f21b9c5a7a8870251a64e88a2db4c"
-client_secret = "820b9f6263d658d14b921e37a5c6a0f0f6e3705e4ade1c02372fd3927ef95625"
-token = get_token(client_id, client_secret)
-
 # 3. Fonction pour afficher l'onglet Emploi
-def afficher_onglet_emploi(token, referentiel):
-    st.title("💼 Comparaison de l'emploi")
-
-    # Utiliser le bon nom de colonne pour les villes
-    villes = referentiel["COM_NOM_MAJ_COURT"].sort_values().unique()
-
-    col_ville1, col_ville2 = st.columns(2)
-    with col_ville1:
-        ville1 = st.selectbox("Choisir la première ville", villes, index=0)
-    with col_ville2:
-        ville2 = st.selectbox("Choisir la deuxième ville", villes, index=1)
+def afficher_onglet_emploi(city1, city2, token, referentiel):
+    st.markdown("## 💼 Comparaison de l'emploi")
 
     # Récupérer les codes INSEE à partir du référentiel
-    code_insee1 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == ville1, "COM_CODE"].values[0]
-    code_insee2 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == ville2, "COM_CODE"].values[0]
+    code_insee1 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city1, "COM_CODE"].values[0]
+    code_insee2 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == city2, "COM_CODE"].values[0]
 
     # Champ pour filtrer par mot-clé
     keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "")
 
-    if st.button("Rechercher des offres"):
-        col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-        with col1:
-            offres_ville1 = fetch_offres(code_insee1, keyword, limit=10, token=token)
-            nb_offres1 = len(offres_ville1)
+    with col1:
+        offres_ville1 = fetch_offres(code_insee1, keyword, limit=10, token=token)
+        nb_offres1 = len(offres_ville1)
 
-            contenu1 = f"""
-            <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
-                <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {ville1}</h3>
-                <ul style="font-size: 16px; line-height: 1.6;">
-                    <li><strong>Nombre d'offres disponibles :</strong> {nb_offres1}</li>
-                </ul>
-            """
+        contenu1 = f"""
+        <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
+            <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {city1}</h3>
+            <ul style="font-size: 16px; line-height: 1.6;">
+                <li><strong>Nombre d'offres disponibles :</strong> {nb_offres1}</li>
+            </ul>
+        """
 
-            if nb_offres1 > 0:
-                for offre in offres_ville1[:3]:
-                    titre = offre.get("intitule", "Titre inconnu")
-                    date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                    contenu1 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
-            else:
-                contenu1 += "<p>Aucune offre trouvée pour cette ville.</p>"
+        if nb_offres1 > 0:
+            for offre in offres_ville1[:3]:
+                titre = offre.get("intitule", "Titre inconnu")
+                date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
+                contenu1 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+        else:
+            contenu1 += "<p>Aucune offre trouvée pour cette ville.</p>"
 
-            contenu1 += "</div>"
-            st.markdown(contenu1, unsafe_allow_html=True)
+        contenu1 += "</div>"
+        st.markdown(contenu1, unsafe_allow_html=True)
 
-        with col2:
-            offres_ville2 = fetch_offres(code_insee2, keyword, limit=10, token=token)
-            nb_offres2 = len(offres_ville2)
+    with col2:
+        offres_ville2 = fetch_offres(code_insee2, keyword, limit=10, token=token)
+        nb_offres2 = len(offres_ville2)
 
-            contenu2 = f"""
-            <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
-                <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {ville2}</h3>
-                <ul style="font-size: 16px; line-height: 1.6;">
-                    <li><strong>Nombre d'offres disponibles :</strong> {nb_offres2}</li>
-                </ul>
-            """
+        contenu2 = f"""
+        <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
+            <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {city2}</h3>
+            <ul style="font-size: 16px; line-height: 1.6;">
+                <li><strong>Nombre d'offres disponibles :</strong> {nb_offres2}</li>
+            </ul>
+        """
 
-            if nb_offres2 > 0:
-                for offre in offres_ville2[:3]:
-                    titre = offre.get("intitule", "Titre inconnu")
-                    date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                    contenu2 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
-            else:
-                contenu2 += "<p>Aucune offre trouvée pour cette ville.</p>"
+        if nb_offres2 > 0:
+            for offre in offres_ville2[:3]:
+                titre = offre.get("intitule", "Titre inconnu")
+                date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
+                contenu2 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+        else:
+            contenu2 += "<p>Aucune offre trouvée pour cette ville.</p>"
 
-            contenu2 += "</div>"
-            st.markdown(contenu2, unsafe_allow_html=True)
-
-# ==================================================================
-
-# 4. Partie principale
-
-    # Charger ton référentiel de communes
-    referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
-
-    # Tes identifiants API France Travail
-    client_id = "PAR_cityfighter_87822568bc2896de7af0df9770a1824feb4f21b9c5a7a8870251a64e88a2db4c"
-    client_secret = "820b9f6263d658d14b921e37a5c6a0f0f6e3705e4ade1c02372fd3927ef95625"
-
-    # Récupérer le token
-    token = get_token(client_id, client_secret)
-
-    if token:
-        afficher_onglet_emploi(token, referentiel)
-    else:
-        st.error("Impossible de récupérer un token. Vérifiez vos identifiants API.")
-
+        contenu2 += "</div>"
+        st.markdown(contenu2, unsafe_allow_html=True)
 
 
    
