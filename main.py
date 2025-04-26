@@ -242,10 +242,67 @@ def afficher_onglet_meteo(city1, city2):
                 st.warning(f"Aucune donnée météo disponible pour {city}")
 
 
+import pandas as pd
+import requests
+from datetime import datetime
+import streamlit as st
+
+# 1. Fonction pour récupérer un token France Travail
+def get_token(client_id, client_secret):
+    url = "https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=%2Fpartenaire"
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "scope": "api_offresdemploiv2 o2dsoffre"
+    }
+    response = requests.post(url, headers=headers, data=data)
+
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        st.error("Erreur lors de la récupération du token France Travail.")
+        return None
+
+# 2. Fonction pour récupérer les offres d'emploi
+def fetch_offres(code_insee, keyword, limit, token, ordre="Plus récentes"):
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {
+        "commune": code_insee,
+        "motsCles": keyword,
+        "range": f"0-{limit - 1}"
+    }
+    response = requests.get(
+        "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search",
+        headers=headers, params=params
+    )
+    if response.status_code != 200:
+        st.error(f"Erreur API France Travail ({code_insee}) : {response.status_code}")
+        return []
+
+    try:
+        data = response.json()
+    except requests.exceptions.JSONDecodeError:
+        st.warning("⚠️ Problème lors de la lecture de la réponse JSON.")
+        return []
+
+    offres = data.get("resultats", [])
+    if not offres:
+        return []
+
+    offres_sorted = sorted(
+        offres,
+        key=lambda x: datetime.strptime(x.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ"),
+        reverse=(ordre == "Plus récentes")
+    )
+    return offres_sorted
+
+# 3. Fonction pour afficher l'onglet Emploi
 def afficher_onglet_emploi(token, referentiel):
     st.title("💼 Comparaison de l'emploi")
 
-    # Utiliser COM_NOM_MAJ_COURT pour afficher les noms de villes
+    # Utiliser le bon nom de colonne pour les villes
     villes = referentiel["COM_NOM_MAJ_COURT"].sort_values().unique()
 
     col_ville1, col_ville2 = st.columns(2)
@@ -254,11 +311,11 @@ def afficher_onglet_emploi(token, referentiel):
     with col_ville2:
         ville2 = st.selectbox("Choisir la deuxième ville", villes, index=1)
 
-    # Utiliser COM_CODE pour récupérer le code INSEE
+    # Récupérer les codes INSEE à partir du référentiel
     code_insee1 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == ville1, "COM_CODE"].values[0]
     code_insee2 = referentiel.loc[referentiel["COM_NOM_MAJ_COURT"] == ville2, "COM_CODE"].values[0]
 
-    # Champ de recherche de mot-clé
+    # Champ pour filtrer par mot-clé
     keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "")
 
     if st.button("Rechercher des offres"):
@@ -276,10 +333,13 @@ def afficher_onglet_emploi(token, referentiel):
                 </ul>
             """
 
-            for offre in offres_ville1[:3]:
-                titre = offre.get("intitule", "Titre inconnu")
-                date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                contenu1 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+            if nb_offres1 > 0:
+                for offre in offres_ville1[:3]:
+                    titre = offre.get("intitule", "Titre inconnu")
+                    date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
+                    contenu1 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+            else:
+                contenu1 += "<p>Aucune offre trouvée pour cette ville.</p>"
 
             contenu1 += "</div>"
             st.markdown(contenu1, unsafe_allow_html=True)
@@ -296,13 +356,37 @@ def afficher_onglet_emploi(token, referentiel):
                 </ul>
             """
 
-            for offre in offres_ville2[:3]:
-                titre = offre.get("intitule", "Titre inconnu")
-                date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                contenu2 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+            if nb_offres2 > 0:
+                for offre in offres_ville2[:3]:
+                    titre = offre.get("intitule", "Titre inconnu")
+                    date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
+                    contenu2 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+            else:
+                contenu2 += "<p>Aucune offre trouvée pour cette ville.</p>"
 
             contenu2 += "</div>"
             st.markdown(contenu2, unsafe_allow_html=True)
+
+# ==================================================================
+
+# 4. Partie principale
+if __name__ == "__main__":
+    st.set_page_config(page_title="CityFighter - Emploi", layout="wide")
+
+    # Charger ton référentiel de communes
+    referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
+
+    # Tes identifiants API France Travail
+    client_id = "PAR_cityfighter_87822568bc2896de7af0df9770a1824feb4f21b9c5a7a8870251a64e88a2db4c"
+    client_secret = "820b9f6263d658d14b921e37a5c6a0f0f6e3705e4ade1c02372fd3927ef95625"
+
+    # Récupérer le token
+    token = get_token(client_id, client_secret)
+
+    if token:
+        afficher_onglet_emploi(token, referentiel)
+    else:
+        st.error("Impossible de récupérer un token. Vérifiez vos identifiants API.")
 
 
 
