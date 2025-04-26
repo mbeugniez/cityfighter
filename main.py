@@ -317,12 +317,11 @@ referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
 def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
 
-    # Nettoyer noms
+    # Nettoyer noms des villes
     referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
     city1_clean = city1.upper().strip()
     city2_clean = city2.upper().strip()
 
-    # Chercher codes INSEE
     try:
         code_insee1 = referentiel.loc[referentiel["Nom_clean"] == city1_clean, "COM_CODE"].values[0]
     except IndexError:
@@ -335,59 +334,53 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
         st.error(f"❌ Ville {city2} introuvable dans le référentiel !")
         st.stop()
 
-    # Champ recherche mot-clé
+    # Champ pour filtrer par mot-clé
     keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "")
+
+    if keyword.strip() == "":
+        motcle_recherche = None
+    else:
+        motcle_recherche = keyword
 
     col1, col2 = st.columns(2)
 
     with col1:
-        offres_ville1 = fetch_offres(code_insee1, keyword, token=token)
+        offres_ville1 = fetch_offres(code_insee1, motcle_recherche, limit=100, token=token)
         nb_offres1 = len(offres_ville1)
 
-        contenu1 = f"""
-        <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
-            <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {city1}</h3>
-            <ul style="font-size: 16px; line-height: 1.6;">
-                <li><strong>Nombre d'offres disponibles :</strong> {nb_offres1}</li>
-            </ul>
-        """
+        st.markdown(f"""
+        <div style="background-color:white; padding:25px; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,0.08);">
+            <h3 style="color:#d0021b; text-align:center;">💼 Emploi à {city1}</h3>
+            <p style="text-align:center; font-size:16px;"><strong>{nb_offres1}</strong> offre(s) d'emploi trouvée(s).</p>
+        </div>
+        """, unsafe_allow_html=True)
 
         if nb_offres1 > 0:
-            offres_a_afficher = offres_ville1 if keyword else offres_ville1[:10]
-            for offre in offres_a_afficher:
+            for offre in offres_ville1[:10]:  # Affiche les 10 dernières
                 titre = offre.get("intitule", "Titre inconnu")
                 date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                contenu1 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+                st.markdown(f"• **{titre}** *(publié le {date})*")
         else:
-            contenu1 += "<p>Aucune offre trouvée pour cette ville.</p>"
-
-        contenu1 += "</div>"
-        st.markdown(contenu1, unsafe_allow_html=True)
+            st.info("Aucune offre trouvée pour cette ville.")
 
     with col2:
-        offres_ville2 = fetch_offres(code_insee2, keyword, token=token)
+        offres_ville2 = fetch_offres(code_insee2, motcle_recherche, limit=100, token=token)
         nb_offres2 = len(offres_ville2)
 
-        contenu2 = f"""
-        <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
-            <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {city2}</h3>
-            <ul style="font-size: 16px; line-height: 1.6;">
-                <li><strong>Nombre d'offres disponibles :</strong> {nb_offres2}</li>
-            </ul>
-        """
+        st.markdown(f"""
+        <div style="background-color:white; padding:25px; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,0.08);">
+            <h3 style="color:#d0021b; text-align:center;">💼 Emploi à {city2}</h3>
+            <p style="text-align:center; font-size:16px;"><strong>{nb_offres2}</strong> offre(s) d'emploi trouvée(s).</p>
+        </div>
+        """, unsafe_allow_html=True)
 
         if nb_offres2 > 0:
-            offres_a_afficher = offres_ville2 if keyword else offres_ville2[:10]
-            for offre in offres_a_afficher:
+            for offre in offres_ville2[:10]:  # Affiche les 10 dernières
                 titre = offre.get("intitule", "Titre inconnu")
                 date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                contenu2 += f"<p><strong>{titre}</strong><br><small>Publiée le {date}</small></p>"
+                st.markdown(f"• **{titre}** *(publié le {date})*")
         else:
-            contenu2 += "<p>Aucune offre trouvée pour cette ville.</p>"
-
-        contenu2 += "</div>"
-        st.markdown(contenu2, unsafe_allow_html=True)
-
+            st.info("Aucune offre trouvée pour cette ville.")
 
 
 import pandas as pd
