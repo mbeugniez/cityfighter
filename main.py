@@ -656,13 +656,7 @@ def afficher_onglet_securite(city1, city2):
         st.warning("⚠️ Pas de données pour l'une des deux villes.")
         return
 
-    infractions_selectionnees = [
-        "Cambriolages de logement",
-        "Vols de véhicules",
-        "Vols dans les véhicules",
-        "Vols sans violence contre des personnes",
-        "Violences sexuelles"
-    ]
+    infractions_selectionnees = ville1_data["indicateur"].unique().tolist()
 
     st.write("✅ Infractions sélectionnées :", infractions_selectionnees)
 
