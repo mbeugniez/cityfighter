@@ -610,15 +610,15 @@ import streamlit as st
 # Chargement des données de sécurité filtrées
 @st.cache_data
 def charger_donnees_securite():
-    df = pd.read_csv(
-        "data/donnees_securite_filtrees.csv",  # ton nouveau fichier filtré
-        sep=";",
-        dtype=str
-    )
+    df = pd.read_csv("data/donnees_securite_filtrees.csv", sep=";", dtype=str)
     df.columns = df.columns.str.strip()
     df['indicateur'] = df['indicateur'].str.strip()
+
+    # Correction des problèmes d'accents
+    df['indicateur'] = df['indicateur'].str.normalize('NFKD').str.encode('latin1', errors='ignore').str.decode('latin1')
+
     df['CODGEO_2024'] = df['CODGEO_2024'].astype(str)
-    df['annee'] = df['annee'].astype(int)  # important pour trier sur année
+    df['annee'] = df['annee'].astype(int)
     df['taux_pour_mille'] = pd.to_numeric(df['taux_pour_mille'], errors='coerce')
     return df
 
