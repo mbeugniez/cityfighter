@@ -657,13 +657,12 @@ def afficher_onglet_securite(city1, city2):
 
     # Sélectionner quelques infractions principales
     infractions_selectionnees = [
-        "Cambriolages de logement",
-        "Vols d'automobiles",
-        "Vols simples contre des particuliers",
-        "Violences physiques crapuleuses",
-        "Violences sexuelles"
-    ]
-
+    "Cambriolages de logement",
+    "Vols de véhicules",
+    "Vols dans les véhicules",
+    "Vols sans violence contre des personnes",
+    "Violences sexuelles"
+]
     taux1 = ville1_data[ville1_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
     taux2 = ville2_data[ville2_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
 
