@@ -614,7 +614,7 @@ def charger_donnees_securite():
     df.columns = df.columns.str.strip()
     df['indicateur'] = df['indicateur'].str.strip()
 
-    # Correction des problèmes d'accents
+    # Correction encodage
     df['indicateur'] = df['indicateur'].str.normalize('NFKD').str.encode('latin1', errors='ignore').str.decode('latin1')
 
     df['CODGEO_2024'] = df['CODGEO_2024'].astype(str)
@@ -622,15 +622,12 @@ def charger_donnees_securite():
     df['taux_pour_mille'] = pd.to_numeric(df['taux_pour_mille'], errors='coerce')
     return df
 
-# Fonction principale
 def afficher_onglet_securite(city1, city2):
-    st.markdown("## 🛡️ Sécurité")
-    st.markdown("Comparaison basée sur des vraies données publiques (taux pour 1000 habitants).")
+    st.markdown("## 🛡️ Sécurité (Mode debug ON)")
 
-    # Chargement des données préparées
     df_securite = charger_donnees_securite()
+    st.write("✅ Aperçu des données sécurité :", df_securite.head())
 
-    # Chargement du référentiel
     referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";", dtype=str)
     referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
 
@@ -641,57 +638,69 @@ def afficher_onglet_securite(city1, city2):
         code_insee1 = referentiel.loc[referentiel["Nom_clean"] == city1_clean, "COM_CODE"].values[0]
         code_insee2 = referentiel.loc[referentiel["Nom_clean"] == city2_clean, "COM_CODE"].values[0]
     except IndexError:
-        st.error("❌ Une des villes est introuvable dans le référentiel INSEE.")
+        st.error("❌ Une des villes est introuvable dans le référentiel.")
         return
 
-    # Filtrer pour l'année la plus récente
-    annee_dispo = df_securite["annee"].max()
+    st.write(f"Code INSEE pour {city1} :", code_insee1)
+    st.write(f"Code INSEE pour {city2} :", code_insee2)
 
-    # Filtrer les données pour les deux villes
+    annee_dispo = df_securite["annee"].max()
+    st.write("Année disponible utilisée :", annee_dispo)
+
     ville1_data = df_securite[(df_securite["CODGEO_2024"] == str(code_insee1)) & (df_securite["annee"] == annee_dispo)]
     ville2_data = df_securite[(df_securite["CODGEO_2024"] == str(code_insee2)) & (df_securite["annee"] == annee_dispo)]
 
+    st.write(f"🔵 Données brutes {city1} :", ville1_data)
+    st.write(f"🟠 Données brutes {city2} :", ville2_data)
+
     if ville1_data.empty or ville2_data.empty:
-        st.warning("Aucune donnée disponible pour l'une des deux villes sélectionnées.")
+        st.warning("⚠️ Pas de données pour l'une des deux villes.")
         return
 
-    # Sélectionner quelques infractions principales
     infractions_selectionnees = [
-    "Cambriolages de logement",
-    "Vols de véhicules",
-    "Vols dans les véhicules",
-    "Vols sans violence contre des personnes",
-    "Violences sexuelles"
-]
+        "Cambriolages de logement",
+        "Vols de véhicules",
+        "Vols dans les véhicules",
+        "Vols sans violence contre des personnes",
+        "Violences sexuelles"
+    ]
+
+    st.write("✅ Infractions sélectionnées :", infractions_selectionnees)
+
+    st.write("✅ Infractions disponibles pour", city1, ":", ville1_data["indicateur"].unique())
+    st.write("✅ Infractions disponibles pour", city2, ":", ville2_data["indicateur"].unique())
+
     taux1 = ville1_data[ville1_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
     taux2 = ville2_data[ville2_data["indicateur"].isin(infractions_selectionnees)][["indicateur", "taux_pour_mille"]]
 
-    # Fusionner
+    st.write(f"Taux pour {city1} :", taux1)
+    st.write(f"Taux pour {city2} :", taux2)
+
     comparaison = pd.merge(
         taux1, taux2, on="indicateur", how="outer", suffixes=(f" ({city1})", f" ({city2})")
     ).fillna(0)
 
-    # Afficher un tableau
-    st.markdown("### 📊 Taux pour 1 000 habitants par type d'infraction")
+    if comparaison.empty:
+        st.warning("⚠️ Aucune correspondance sur les infractions.")
+        return
+
     st.dataframe(comparaison.rename(columns={
         "indicateur": "Infraction",
         f"taux_pour_mille ({city1})": f"{city1} (‰)",
         f"taux_pour_mille ({city2})": f"{city2} (‰)"
     }), use_container_width=True)
 
-    # Graphique
     try:
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.barh(comparaison["Infraction"], comparaison[f"taux_pour_mille ({city1})"], label=city1, alpha=0.7)
         ax.barh(comparaison["Infraction"], -comparaison[f"taux_pour_mille ({city2})"], label=city2, alpha=0.7)
         ax.axvline(0, color='black')
-        ax.set_xlabel(f"Taux pour 1000 habitants (+{city1} / -{city2})")
+        ax.set_xlabel("Taux pour 1000 habitants (+ pour "+city1+" / - pour "+city2+")")
         ax.legend()
         st.pyplot(fig)
     except Exception as e:
-        st.error(f"Erreur lors de la création du graphique : {e}")
+        st.error(f"Erreur graphique : {e}")
 
-    st.markdown(f"<p style='font-size:12px; text-align:center; color:gray;'>Source : Données publiques {annee_dispo}</p>", unsafe_allow_html=True)
 
 
 import unicodedata
