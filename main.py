@@ -651,8 +651,6 @@ def afficher_onglet_securite(city1, city2):
     total1 = ville1_data["taux_pour_mille"].sum() * 1000
     total2 = ville2_data["taux_pour_mille"].sum() * 1000
 
-    moyenne_nationale = 5258  # Valeur fictive pour l'exemple
-
     col1, col2 = st.columns(2)
 
     with col1:
@@ -660,8 +658,6 @@ def afficher_onglet_securite(city1, city2):
         <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 12px rgba(0,0,0,0.08);">
             <h4 style="color: #c8102e;">{city1}</h4>
             <p><strong style="font-size: 24px; color: #d90429;">{int(total1):,}</strong> crimes et délits pour 100 000 habitants.</p>
-            <p><strong>Moyenne nationale :</strong> {moyenne_nationale}</p>
-            <p>Cette commune dépend d'une zone CGD fictive X.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -670,8 +666,6 @@ def afficher_onglet_securite(city1, city2):
         <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 12px rgba(0,0,0,0.08);">
             <h4 style="color: #c8102e;">{city2}</h4>
             <p><strong style="font-size: 24px; color: #d90429;">{int(total2):,}</strong> crimes et délits pour 100 000 habitants.</p>
-            <p><strong>Moyenne nationale :</strong> {moyenne_nationale}</p>
-            <p>Cette commune dépend d'une zone CGD fictive Y.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -679,7 +673,6 @@ def afficher_onglet_securite(city1, city2):
     # 📊 Détails toutes infractions disponibles
     st.markdown("### 📊 Détails par type d'infraction")
 
-    # Prendre toutes les infractions communes aux deux villes
     infractions = sorted(
         set(ville1_data["indicateur"].unique()) | set(ville2_data["indicateur"].unique())
     )
@@ -687,18 +680,17 @@ def afficher_onglet_securite(city1, city2):
     taux1 = ville1_data[["indicateur", "taux_pour_mille"]].set_index("indicateur").reindex(infractions).fillna(0)
     taux2 = ville2_data[["indicateur", "taux_pour_mille"]].set_index("indicateur").reindex(infractions).fillna(0)
 
-    # Création du tableau
     data = {
         "Infraction": infractions,
         city1: (taux1["taux_pour_mille"] * 1000).round(0).astype(int),
-        city2: (taux2["taux_pour_mille"] * 1000).round(0).astype(int),
-        "National": [moyenne_nationale // 10] * len(infractions)  # Simulé
+        city2: (taux2["taux_pour_mille"] * 1000).round(0).astype(int)
     }
 
     df_final = pd.DataFrame(data)
     st.dataframe(df_final, use_container_width=True)
 
     st.markdown(f"<p style='font-size:12px; text-align:center; margin-top:10px; color:#777;'>Source : données publiques — taux pour 100 000 habitants</p>", unsafe_allow_html=True)
+
 
 import unicodedata
 
