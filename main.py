@@ -319,32 +319,29 @@ referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
 def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
 
-    # Nettoyage du nom de ville
     referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
     city1_clean = city1.upper().strip()
     city2_clean = city2.upper().strip()
 
-    # Cherche les codes INSEE
     try:
         code_insee1 = referentiel.loc[referentiel["Nom_clean"] == city1_clean, "COM_CODE"].values[0]
     except IndexError:
         st.error(f"❌ Ville {city1} introuvable dans le référentiel !")
-        st.stop()
+        return
 
     try:
         code_insee2 = referentiel.loc[referentiel["Nom_clean"] == city2_clean, "COM_CODE"].values[0]
     except IndexError:
         st.error(f"❌ Ville {city2} introuvable dans le référentiel !")
-        st.stop()
+        return
 
-    # Champ de recherche
-    keyword = st.text_input("🔎 Rechercher un métier spécifique (obligatoire)", "")
+    keyword = st.text_input("🔎 Rechercher un métier spécifique (obligatoire pour afficher les offres)", "")
 
     if keyword.strip() == "":
-        st.warning("⚠️ Merci de saisir un mot-clé pour rechercher des offres d'emploi.")
-        st.stop()
+        st.info("🛑 Merci d'entrer un mot-clé pour rechercher des offres d'emploi.")
+        return  # On arrête juste l'affichage de cet onglet sans bloquer le reste de l'app
 
-    # Si mot clé saisi, recherche
+    # Si un mot-clé est saisi, on cherche les offres
     col1, col2 = st.columns(2)
 
     with col1:
@@ -382,6 +379,7 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
                     st.markdown(f"- {titre}")
         else:
             st.info("Aucune offre trouvée pour cette ville.")
+
 
 
 
