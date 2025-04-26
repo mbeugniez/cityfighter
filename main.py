@@ -243,37 +243,39 @@ def afficher_onglet_meteo(city1, city2):
 
 
 
-def afficher_onglet_emploi(ville1, ville2):
+import requests
+from datetime import datetime
+
+def afficher_onglet_emploi(ville1, ville2, code_insee1, code_insee2, token):
     col1, col2 = st.columns(2)
+    
+    # Pour la première ville
     with col1:
+        offres_ville1 = fetch_offres(code_insee1, keyword="", limit=50, token=token)
+        nb_offres1 = len(offres_ville1)
+        
         st.markdown(f"""
             <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
                 <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {ville1}</h3>
                 <ul style="font-size: 16px; line-height: 1.6;">
-                    <li><strong>Actifs :</strong> 10 500</li>
-                    <li><strong>Actifs occupés :</strong> 9 200</li>
-                    <li><strong>Chômeurs :</strong> 1 300</li>
-                    <li><strong>Taux d'activité :</strong> 75 %</li>
-                    <li><strong>Taux d'emploi :</strong> 66 %</li>
-                    <li><strong>Taux de chômage :</strong> 12 %</li>
-                </ul>
-            </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-            <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
-                <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {ville2}</h3>
-                <ul style="font-size: 16px; line-height: 1.6;">
-                    <li><strong>Actifs :</strong> 8 700</li>
-                    <li><strong>Actifs occupés :</strong> 7 500</li>
-                    <li><strong>Chômeurs :</strong> 1 200</li>
-                    <li><strong>Taux d'activité :</strong> 71 %</li>
-                    <li><strong>Taux d'emploi :</strong> 63 %</li>
-                    <li><strong>Taux de chômage :</strong> 14 %</li>
+                    <li><strong>Nombre d'offres disponibles :</strong> {nb_offres1}</li>
                 </ul>
             </div>
         """, unsafe_allow_html=True)
 
+    # Pour la deuxième ville
+    with col2:
+        offres_ville2 = fetch_offres(code_insee2, keyword="", limit=50, token=token)
+        nb_offres2 = len(offres_ville2)
+        
+        st.markdown(f"""
+            <div style="background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 1rem;">
+                <h3 style="color: #e2001a; text-align: center;">💼 Emploi à {ville2}</h3>
+                <ul style="font-size: 16px; line-height: 1.6;">
+                    <li><strong>Nombre d'offres disponibles :</strong> {nb_offres2}</li>
+                </ul>
+            </div>
+        """, unsafe_allow_html=True)
 
 import pandas as pd
 import numpy as np
