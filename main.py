@@ -319,10 +319,12 @@ referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
 def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
 
+    # Nettoyage du nom de ville
     referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
     city1_clean = city1.upper().strip()
     city2_clean = city2.upper().strip()
 
+    # Cherche les codes INSEE
     try:
         code_insee1 = referentiel.loc[referentiel["Nom_clean"] == city1_clean, "COM_CODE"].values[0]
     except IndexError:
@@ -335,37 +337,52 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
         st.error(f"❌ Ville {city2} introuvable dans le référentiel !")
         st.stop()
 
-    keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "").strip()
+    # Champ de recherche
+    keyword = st.text_input("🔎 Rechercher un métier spécifique (obligatoire)", "")
 
+    if keyword.strip() == "":
+        st.warning("⚠️ Merci de saisir un mot-clé pour rechercher des offres d'emploi.")
+        st.stop()
+
+    # Si mot clé saisi, recherche
     col1, col2 = st.columns(2)
 
     with col1:
-        offres_ville1 = fetch_offres(code_insee=code_insee1, keyword=keyword, limit=100, token=token)
+        offres_ville1 = fetch_offres(code_insee1, keyword, limit=50, token=token)
         nb_offres1 = len(offres_ville1)
 
-        st.markdown(f"### 💼 {city1}")
-        st.markdown(f"**Nombre d'offres :** {nb_offres1}")
+        st.markdown(f"### 💼 Emploi à {city1}")
+        st.markdown(f"**Nombre d'offres trouvées :** {nb_offres1}")
 
-        if keyword and nb_offres1 > 0:
-            st.markdown("### 🔗 Offres correspondantes :")
+        if nb_offres1 > 0:
             for offre in offres_ville1:
                 titre = offre.get("intitule", "Titre inconnu")
-                lien = offre.get("origineOffre", {}).get("urlOrigine", "#")
-                st.markdown(f"- [{titre}]({lien})")
+                lien = offre.get("origineOffre", {}).get("urlOrigine", None)
+                if lien:
+                    st.markdown(f"- [{titre}]({lien})")
+                else:
+                    st.markdown(f"- {titre}")
+        else:
+            st.info("Aucune offre trouvée pour cette ville.")
 
     with col2:
-        offres_ville2 = fetch_offres(code_insee=code_insee2, keyword=keyword, limit=100, token=token)
+        offres_ville2 = fetch_offres(code_insee2, keyword, limit=50, token=token)
         nb_offres2 = len(offres_ville2)
 
-        st.markdown(f"### 💼 {city2}")
-        st.markdown(f"**Nombre d'offres :** {nb_offres2}")
+        st.markdown(f"### 💼 Emploi à {city2}")
+        st.markdown(f"**Nombre d'offres trouvées :** {nb_offres2}")
 
-        if keyword and nb_offres2 > 0:
-            st.markdown("### 🔗 Offres correspondantes :")
+        if nb_offres2 > 0:
             for offre in offres_ville2:
                 titre = offre.get("intitule", "Titre inconnu")
-                lien = offre.get("origineOffre", {}).get("urlOrigine", "#")
-                st.markdown(f"- [{titre}]({lien})")
+                lien = offre.get("origineOffre", {}).get("urlOrigine", None)
+                if lien:
+                    st.markdown(f"- [{titre}]({lien})")
+                else:
+                    st.markdown(f"- {titre}")
+        else:
+            st.info("Aucune offre trouvée pour cette ville.")
+
 
 
 
