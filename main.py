@@ -317,7 +317,6 @@ referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
 def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
 
-    # Nettoyer noms des villes
     referentiel["Nom_clean"] = referentiel["COM_NOM_MAJ_COURT"].str.upper().str.strip()
     city1_clean = city1.upper().strip()
     city2_clean = city2.upper().strip()
@@ -337,15 +336,10 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
     # Champ pour filtrer par mot-clé
     keyword = st.text_input("🔎 Rechercher un métier spécifique (facultatif)", "")
 
-    if keyword.strip() == "":
-        motcle_recherche = None
-    else:
-        motcle_recherche = keyword
-
     col1, col2 = st.columns(2)
 
     with col1:
-        offres_ville1 = fetch_offres(code_insee1, motcle_recherche, limit=100, token=token)
+        offres_ville1 = fetch_offres(code_insee=code_insee1, keyword=keyword, limit=100, token=token)
         nb_offres1 = len(offres_ville1)
 
         st.markdown(f"""
@@ -356,7 +350,7 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
         """, unsafe_allow_html=True)
 
         if nb_offres1 > 0:
-            for offre in offres_ville1[:10]:  # Affiche les 10 dernières
+            for offre in offres_ville1[:10]:
                 titre = offre.get("intitule", "Titre inconnu")
                 date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
                 st.markdown(f"• **{titre}** *(publié le {date})*")
@@ -364,7 +358,7 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
             st.info("Aucune offre trouvée pour cette ville.")
 
     with col2:
-        offres_ville2 = fetch_offres(code_insee2, motcle_recherche, limit=100, token=token)
+        offres_ville2 = fetch_offres(code_insee=code_insee2, keyword=keyword, limit=100, token=token)
         nb_offres2 = len(offres_ville2)
 
         st.markdown(f"""
@@ -375,7 +369,7 @@ def afficher_onglet_emploi(city1, city2, token, referentiel):
         """, unsafe_allow_html=True)
 
         if nb_offres2 > 0:
-            for offre in offres_ville2[:10]:  # Affiche les 10 dernières
+            for offre in offres_ville2[:10]:
                 titre = offre.get("intitule", "Titre inconnu")
                 date = datetime.strptime(offre.get("dateCreation", "1900-01-01T00:00:00.000Z"), "%Y-%m-%dT%H:%M:%S.%fZ").date()
                 st.markdown(f"• **{titre}** *(publié le {date})*")
