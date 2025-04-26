@@ -299,6 +299,9 @@ def fetch_offres(code_insee, keyword, limit, token, ordre="Plus récentes"):
     )
     return offres_sorted
 
+token = get_token(client_id, client_secret)
+referentiel = pd.read_csv("data/referentiel_plus_20000.csv", sep=";")
+
 # 3. Fonction pour afficher l'onglet Emploi
 def afficher_onglet_emploi(city1, city2, token, referentiel):
     st.markdown("## 💼 Comparaison de l'emploi")
